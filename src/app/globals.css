@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 240 6% 98%; /* #F9FAFB */
+    --foreground: 240 6% 10%; /* #1F2937 */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 10%;
+
+    /* --- Primary Color Definition (Corporate Red) --- */
+    --primary: 354 70% 44%; /* #BE1E2D */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    
+    --secondary: 240 5% 96%; /* #F3F4F6 */
+    --secondary-foreground: 240 6% 10%;
+    
+    --muted: 240 5% 90%; /* #E5E7EB */
+    --muted-foreground: 240 4% 46%; /* #6B7280 */
+
+    /* Accent uses a soft, pastel red for active elements */
+    --accent: 354 70% 90%; /* #FAD4D4 */
+    --accent-foreground: 354 70% 34%; /* #A61A27 */
+    
+    --destructive: 0 84% 60%; /* #FF5252 - A clearer red for destructive actions */
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 6% 90%; /* #E5E7EB */
+    --input: 240 6% 90%;
+    --ring: 354 70% 54%;
+    
+    --radius: 0.5rem; /* 8px */
+
+    /* --- Status Colors (Pastel) --- */
+    --status-pending: 45 100% 88%; /* #FFF4C1 */
+    --status-in-process: 210 100% 88%; /* #C1DFFF - Pastel Blue */
+    --status-complete: 152 75% 90%; /* #D3F8E5 */
+    --status-delayed: 0 100% 90%; /* #FFD1D1 */
+  }
+
+  .dark {
+    --background: 240 6% 10%; /* #1F2937 */
+    --foreground: 0 0% 98%;
+    
+    --card: 240 4% 16%; /* #292D33 */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 4% 16%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 354 70% 54%; /* #D94A58 */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 240 4% 20%; /* #31363D */
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 4% 20%;
+    --muted-foreground: 240 4% 65%;
+    
+    --accent: 354 70% 20%;
+    --accent-foreground: 354 70% 64%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 4% 25%;
+    --input: 240 4% 25%;
+    --ring: 354 70% 54%;
+
+    /* --- Status Colors --- */
+    --status-pending: 45 100% 22%; 
+    --status-in-process: 210 100% 22%;
+    --status-complete: 152 75% 25%;
+    --status-delayed: 0 84% 30%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
