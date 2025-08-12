@@ -291,26 +291,13 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
                         Estado global y en tiempo real de los proyectos activos.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="flex gap-4">
-                     <Alert className="flex-1 bg-red-50 border-red-200 text-red-800">
-                        <AlertTriangle className="h-4 w-4 !text-red-500" />
-                        <AlertTitle className="font-semibold">3 tareas atrasadas</AlertTitle>
-                    </Alert>
-                    <Alert className="flex-1 bg-amber-50 border-amber-200 text-amber-800">
-                        <AlertTriangle className="h-4 w-4 !text-amber-500" />
-                        <AlertTitle className="font-semibold">2 proyectos próximos a entregar</AlertTitle>
-                    </Alert>
-                     <Alert className="flex-1 bg-yellow-50 border-yellow-200 text-yellow-800">
-                        <AlertTriangle className="h-4 w-4 !text-yellow-500" />
-                        <AlertTitle className="font-semibold">1 proyecto sin avances</AlertTitle>
-                    </Alert>
-                </div>
+
                 {isDataLoading ? (
                      <div className="flex-grow flex items-center justify-center">
                         <Loader2 className="h-10 w-10 animate-spin text-primary" />
                     </div>
                 ) : (
-                <Tabs defaultValue="timeline" className="flex-grow flex flex-col min-h-0">
+                <Tabs defaultValue="timeline" className="flex-grow flex flex-col min-h-0 pt-4">
                     <TabsList className="self-start grid grid-cols-3 w-auto">
                         <TabsTrigger value="timeline"><GanttChartSquare className="mr-2" />Cronograma Global</TabsTrigger>
                         <TabsTrigger value="projects"><FolderKanban className="mr-2" />Análisis por Proyecto</TabsTrigger>
