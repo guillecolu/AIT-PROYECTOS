@@ -69,7 +69,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
             margin: 1,
             width: 80 // Increased width for better quality
         });
-        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - 5, qrSize, qrSize);
+        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - qrSize + 5, qrSize, qrSize);
 
         // Page number
         doc.text(`Página ${pageNum} de ${totalPages}`, M.l, pageHeight - M.b + 8, { align: 'left' });
