@@ -200,7 +200,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
     }
 
     const partStages = project.parts.find(p => p.id === selectedPart.id)?.stages || [];
-    const partTasks = tasks.filter(t => t.partId === selectedPart.id);
+    const partTasks = tasks.filter(t => t.component === selectedPart.id);
     
 
     return (
@@ -794,7 +794,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     
     return (
         <div className="space-y-6">
-            <Card onDoubleClick={() => setIsEditModalOpen(true)} className="cursor-pointer">
+            <Card onDoubleClick={() => setIsEditModalOpen(true)} className={cn("cursor-pointer bg-primary/5")}>
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
@@ -954,3 +954,5 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
+
+    
