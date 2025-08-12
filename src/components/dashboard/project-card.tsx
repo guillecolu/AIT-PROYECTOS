@@ -103,9 +103,9 @@ export default function ProjectCard({ project, users }: { project: Project, user
                 )}
                 style={getBorderStyle()}
             >
-                <CardHeader>
+                <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
-                        <CardTitle className="font-headline text-lg mb-1 pr-8">{name}</CardTitle>
+                        <CardTitle className="font-headline text-base mb-1 pr-8">{name}</CardTitle>
                         <div className="flex items-center gap-2">
                              {isUrgent && <AlertTriangle className="h-4 w-4 text-destructive" />}
                              <Badge variant="outline" className={cn("capitalize flex-shrink-0 transition-none", statusBadgeClasses[status])}>{status}</Badge>
@@ -113,23 +113,23 @@ export default function ProjectCard({ project, users }: { project: Project, user
                     </div>
                     <CardDescription>{client}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow space-y-4">
+                <CardContent className="flex-grow space-y-2 p-4 pt-0">
                     <div className="space-y-1">
-                        <div className="flex justify-between text-sm text-muted-foreground">
+                        <div className="flex justify-between text-xs text-muted-foreground">
                             <span>Progreso</span>
                             <span>{progress}%</span>
                         </div>
-                        <Progress value={progress} aria-label={`${progress}% completado`} className={cn(isUrgent && '[&>div]:bg-destructive')} indicatorStyle={{ backgroundColor: !isUrgent && color ? color : undefined }}/>
+                        <Progress value={progress} aria-label={`${progress}% completado`} className={cn("h-1.5", isUrgent && '[&>div]:bg-destructive')} indicatorStyle={{ backgroundColor: !isUrgent && color ? color : undefined }}/>
                     </div>
                     {projectManager && (
-                        <div className="flex items-center text-sm text-muted-foreground pt-2 border-t border-dashed">
-                        <UserSquare className="h-4 w-4 mr-2" />
+                        <div className="flex items-center text-xs text-muted-foreground pt-2 border-t border-dashed">
+                        <UserSquare className="h-3 w-3 mr-2" />
                         <span className="mr-1">Jefe de Proyecto:</span>
                         <span className="font-medium text-foreground">{projectManager.name}</span>
                         </div>
                     )}
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
+                <CardFooter className="p-4 pt-0 flex justify-between items-center">
                     <div className={cn(
                         "text-xs text-muted-foreground",
                         status !== 'cerrado' && daysRemaining < 0 && "text-destructive font-semibold"
@@ -137,12 +137,12 @@ export default function ProjectCard({ project, users }: { project: Project, user
                         {deliveryText}
                     </div>
                     <div className="flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation()}}>
-                            <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-8 w-8'/>
+                            <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-7 w-7'/>
                         {status !== 'cerrado' && (
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
+                                className="h-7 w-7"
                                 onClick={toggleUrgent}
                             >
                                 <AlertTriangle className={cn("h-4 w-4 text-muted-foreground", isUrgent && "text-destructive fill-destructive/20")} />
@@ -153,7 +153,7 @@ export default function ProjectCard({ project, users }: { project: Project, user
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-8 w-8"
+                                    className="h-7 w-7"
                                 >
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
