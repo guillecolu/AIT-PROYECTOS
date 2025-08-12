@@ -99,7 +99,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
             filtered.sort((a, b) => {
                 const orderA = priorityOrder[a.priority];
                 const orderB = priorityOrder[b.priority];
-                return sortPriority === 'asc' ? orderA - orderB : orderB - orderA;
+                return sortPriority === 'asc' ? orderA - orderB : orderB - a;
             });
         }
         return filtered;
@@ -254,27 +254,25 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenUserModal(user)}>
                                                             <Pencil className="h-4 w-4 text-muted-foreground" />
                                                         </Button>
-                                                        <AlertDialog onOpenChange={() => setUserToDelete(null)}>
+                                                        <AlertDialog open={userToDelete?.id === user.id} onOpenChange={(open) => !open && setUserToDelete(null)}>
                                                             <AlertDialogTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setUserToDelete(user)}>
                                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                                 </Button>
                                                             </AlertDialogTrigger>
-                                                            {userToDelete?.id === user.id && (
-                                                                <AlertDialogContent>
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                                                        <AlertDialogDescription>
-                                                                            Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario
-                                                                            <span className="font-bold"> {userToDelete.name}</span> y desasignará sus tareas.
-                                                                        </AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleDeleteUser}>Sí, eliminar</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            )}
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>
+                                                                        Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario
+                                                                        <span className="font-bold"> {userToDelete?.name}</span> y desasignará sus tareas.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleDeleteUser}>Sí, eliminar</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
                                                         </AlertDialog>
                                                      </div>
                                                 </div>
