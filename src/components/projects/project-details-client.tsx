@@ -201,7 +201,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
     }
 
     const partStages = project.parts.find(p => p.id === selectedPart.id)?.stages || [];
-    const partTasks = tasks.filter(t => t.component === selectedPart.id);
+    const partTasks = tasks.filter(t => t.partId === selectedPart.id);
     
 
     return (
@@ -972,5 +972,3 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
-
-    
