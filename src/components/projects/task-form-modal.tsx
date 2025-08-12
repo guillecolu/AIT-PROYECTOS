@@ -21,6 +21,7 @@ import { CalendarIcon, Save, Paperclip, X } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const taskSchema = z.object({
   title: z.string().min(1, 'El título es obligatorio.'),
@@ -57,6 +58,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [attachmentName, setAttachmentName] = useState<string | null>(task?.attachmentName || null);
+  const isMobile = useIsMobile();
 
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema),
@@ -353,35 +355,45 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel>Fecha Límite</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(field.value, "PPP", { locale: es })
-                                    ) : (
-                                        <span>Elige una fecha</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
+                             {isMobile ? (
                                 <Calendar
                                     mode="single"
                                     selected={field.value}
                                     onSelect={field.onChange}
-                                    initialFocus
+                                    className="rounded-md border"
                                     locale={es}
                                 />
-                                </PopoverContent>
-                            </Popover>
+                             ) : (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP", { locale: es })
+                                        ) : (
+                                            <span>Elige una fecha</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        locale={es}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                             )}
                             <FormMessage />
                             </FormItem>
                         )}
