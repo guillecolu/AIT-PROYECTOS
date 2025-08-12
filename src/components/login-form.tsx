@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -29,8 +30,8 @@ export default function LoginForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "engineer@example.com",
-      password: "password",
+      email: "",
+      password: "",
     },
   });
 
