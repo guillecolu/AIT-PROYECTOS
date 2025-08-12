@@ -6,9 +6,6 @@ import type { Project, Task, User, Part, Stage, CommonTask } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-
-
 interface DataContextProps {
   projects: Project[];
   tasks: Task[];
@@ -40,40 +37,40 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [commonTasks, setCommonTasks] = useState<CommonTask[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap] = await Promise.all([
+        getDocs(collection(db, "projects")),
+        getDocs(collection(db, "tasks")),
+        getDocs(collection(db, "users")),
+        getDocs(collection(db, "commonDepartments")),
+        getDocs(collection(db, "commonTasks")),
+      ]);
+
+      let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+      let tasksData = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+      let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
+      const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
+
+      setProjects(projectsData);
+      setTasks(tasksData);
+      setUsers(usersData);
+      setCommonDepartments(commonDeptData);
+      setCommonTasks(commonTasksData);
+
+    } catch (error) {
+      console.error("Error fetching data from Firestore: ", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Fetch initial data from Firestore
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap] = await Promise.all([
-          getDocs(collection(db, "projects")),
-          getDocs(collection(db, "tasks")),
-          getDocs(collection(db, "users")),
-          getDocs(collection(db, "commonDepartments")),
-          getDocs(collection(db, "commonTasks")),
-        ]);
-
-        let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-        let tasksData = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-        let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-        const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
-        const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
-
-        setProjects(projectsData);
-        setTasks(tasksData);
-        setUsers(usersData);
-        setCommonDepartments(commonDeptData);
-        setCommonTasks(commonTasksData);
-
-      } catch (error) {
-        console.error("Error fetching data from Firestore: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
     if (commonDepartments.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
