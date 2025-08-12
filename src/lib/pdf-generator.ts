@@ -5,6 +5,8 @@ import autoTable from "jspdf-autotable";
 import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Project, Task, User, TaskComponent } from './types';
+import qrcode from 'qrcode';
+
 
 // Extend jsPDF with autoTable
 interface jsPDFWithAutoTable extends jsPDF {
@@ -49,19 +51,27 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         doc.line(M.l, M.t + 22, doc.internal.pageSize.getWidth() - M.r, M.t + 22);
     };
 
-    const addFooter = (doc: jsPDFWithAutoTable, pageNum: number, totalPages: number) => {
+    const addFooter = async (doc: jsPDFWithAutoTable, pageNum: number, totalPages: number) => {
         const pageHeight = doc.internal.pageSize.getHeight();
-        
+        const rightX = doc.internal.pageSize.getWidth() - M.r;
+
         // Footer text
         doc.setFont('Inter', 'normal');
         doc.setFontSize(8);
         doc.setTextColor('#6B7280');
         doc.text('Documento interno AIT – Generado automáticamente', M.l, pageHeight - M.b + 6);
+        
+        // QR Code
+        const projectUrl = `${window.location.origin}/dashboard/projects/${project.id}`;
+        const qrCodeDataUrl = await qrcode.toDataURL(projectUrl, {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 70
+        });
+        doc.addImage(qrCodeDataUrl, 'PNG', rightX - 20, pageHeight - M.b, 20, 20);
 
         // Page number
-        doc.text(`Página ${pageNum} de ${totalPages}`,
-            doc.internal.pageSize.getWidth() - M.r,
-            pageHeight - M.b + 6, { align: 'right' });
+        doc.text(`Página ${pageNum} de ${totalPages}`, rightX - 22, pageHeight - M.b + 6, { align: 'right' });
     };
     
     // Summary Cards
@@ -176,7 +186,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         },
         didDrawPage: async (data) => {
             addHeader(doc);
-            addFooter(doc, data.pageNumber, (doc.internal as any).pages.length);
+            await addFooter(doc, data.pageNumber, (doc.internal as any).pages.length);
         },
     });
     
@@ -184,7 +194,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
     const totalPages = (doc.internal as any).pages.length;
     for(let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        addFooter(doc, i, totalPages);
+        await addFooter(doc, i, totalPages);
     }
 
     const filename = `AIT_${project.numero || project.id}_${project.client}_TareasPendientes_${format(today, 'yyyy-MM-dd_HHmm')}.pdf`;
