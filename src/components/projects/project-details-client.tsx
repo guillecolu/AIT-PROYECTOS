@@ -43,6 +43,7 @@ import { Input } from '../ui/input';
 import EditableField from '../ui/editable-field';
 import ProjectColorPicker from './project-color-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import ProjectEditModal from './project-edit-modal';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -539,7 +540,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const [taskForNotes, setTaskForNotes] = useState<Task | null>(null);
-    const [isEditingManager, setIsEditingManager] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Use internal state to manage optimistic updates for project and tasks
     const [internalProject, setInternalProject] = useState(initialProject);
@@ -581,7 +582,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         }
 
         return () => {
-             // Cleanup: Revert on unmount
+             // Cleanup: Remount
             root.style.removeProperty('--primary');
             root.style.removeProperty('--primary-foreground');
             root.style.removeProperty('--ring');
@@ -733,13 +734,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveProject(updatedProject);
     }
 
-    const handleProjectFieldChange = async (field: keyof Project, value: any) => {
-        const updatedProject = { ...internalProject, [field]: value };
+    const handleProjectFieldChange = async (projectData: Partial<Project>) => {
+        const updatedProject = { ...internalProject, ...projectData };
         setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
         toast({
           title: 'Proyecto Actualizado',
-          description: `La propiedad del proyecto se ha actualizado.`,
+          description: `Los detalles del proyecto se han actualizado.`,
         });
     };
 
@@ -798,24 +799,18 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
                             <div className="group flex items-center gap-2">
-                                <EditableField
-                                    initialValue={internalProject.name}
-                                    onSave={(newValue) => handleProjectFieldChange('name', newValue)}
-                                    label="Nombre del proyecto"
-                                    className="font-headline text-3xl"
-                                />
-                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange('color', color)} triggerClassName='h-8 w-8' />
+                                <h1 className="font-headline text-3xl">{internalProject.name}</h1>
+                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange({ color })} triggerClassName='h-8 w-8' />
                              </div>
                              <div className="group">
-                                <EditableField
-                                    initialValue={internalProject.client}
-                                    onSave={(newValue) => handleProjectFieldChange('client', newValue)}
-                                    label="Cliente"
-                                    className="text-lg text-muted-foreground"
-                                />
+                                <p className="text-lg text-muted-foreground">{internalProject.client}</p>
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar Detalles
+                            </Button>
                             <Badge 
                                 className={cn(
                                     "capitalize text-base border-0",
@@ -872,39 +867,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                          <div className="flex items-center md:justify-center text-muted-foreground group">
                             <UserSquare className="h-4 w-4 mr-2"/>
                             <span>Jefe de Proyecto:</span>
-                            {isEditingManager ? (
-                                <div className="w-48 ml-2">
-                                <Select
-                                    value={internalProject.projectManagerId}
-                                    onValueChange={(newManagerId) => {
-                                        handleProjectFieldChange('projectManagerId', newManagerId);
-                                        setIsEditingManager(false);
-                                    }}
-                                    onOpenChange={(isOpen) => {
-                                        if (!isOpen) setIsEditingManager(false);
-                                    }}
-                                    defaultOpen
-                                >
-                                    <SelectTrigger className="h-8 border-dashed">
-                                        <SelectValue>
-                                            {projectManager ? projectManager.name : "Seleccionar..."}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {managers.map(user => (
-                                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-foreground ml-2">{projectManager?.name || 'No asignado'}</span>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => setIsEditingManager(true)}>
-                                        <Edit className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            )}
+                            <span className="font-medium text-foreground ml-2">{projectManager?.name || 'No asignado'}</span>
                         </div>
                     </div>
                 </CardContent>
@@ -981,6 +944,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     onTaskUpdate={handleTaskUpdate}
                 />
              )}
+            <ProjectEditModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                project={internalProject}
+                onSave={handleProjectFieldChange}
+                users={users}
+            />
         </div>
     );
 }
