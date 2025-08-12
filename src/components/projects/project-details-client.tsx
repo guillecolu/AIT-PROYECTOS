@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip } from 'lucide-react';
+import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2 } from 'lucide-react';
 import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -44,6 +44,7 @@ import EditableField from '../ui/editable-field';
 import ProjectColorPicker from './project-color-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import ProjectEditModal from './project-edit-modal';
+import { generatePendingTasksPdf } from '@/lib/pdf-generator';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -533,10 +534,11 @@ const getContrastingTextColor = (hexcolor?: string): string => {
 }
 
 export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, projects } = useData();
+    const { saveProject, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const [taskForNotes, setTaskForNotes] = useState<Task | null>(null);
@@ -789,8 +791,29 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveProject(updatedProject);
     }
 
+    const handleGeneratePdf = async () => {
+        setIsGeneratingPdf(true);
+        try {
+            await generatePendingTasksPdf(internalProject, internalTasks, users, appConfig.logoUrl);
+            toast({
+                title: "PDF Generado",
+                description: "El archivo de tareas pendientes se ha descargado.",
+            });
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast({
+                variant: "destructive",
+                title: "Error al generar PDF",
+                description: "No se pudo crear el archivo. Revisa la consola para más detalles.",
+            });
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
+
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
     const managers = users.filter(u => u.role === 'Engineer');
+    const pendingTasksCount = useMemo(() => internalTasks.filter(t => t.status !== 'finalizada').length, [internalTasks]);
     
     return (
         <div className="space-y-6">
@@ -807,20 +830,15 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
+                             <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
+                                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                                PDF Tareas Pendientes
+                                <Badge variant="secondary" className="ml-2">{pendingTasksCount}</Badge>
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Editar Detalles
                             </Button>
-                            <Badge 
-                                className={cn(
-                                    "capitalize text-base border-0",
-                                    internalProject.status === 'activo' && 'bg-status-complete text-green-800',
-                                    internalProject.status === 'pausado' && 'bg-status-pending text-yellow-800',
-                                    internalProject.status === 'cerrado' && 'bg-gray-200 text-gray-800'
-                                )}
-                            >
-                                {internalProject.status}
-                            </Badge>
                              {internalProject.status !== 'cerrado' && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>

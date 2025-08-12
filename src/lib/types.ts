@@ -46,6 +46,7 @@ export interface ProjectNote {
 
 export interface Project {
   id: string;
+  numero?: string;
   name: string;
   client: string;
   status: ProjectStatus;
