@@ -53,7 +53,7 @@ const priorityOrder: Record<TaskPriority, number> = {
     'Baja': 1,
 };
 
-const userCategories: UserRole[] = ['Admin', 'Manager', 'Engineer', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+const userCategories: UserRole[] = ['Admin', 'Manager', 'Dirección de Proyecto', 'Dirección de Área', 'Comercial', 'Engineer', 'Taller', 'Eléctrico'];
 
 const categoryIcons: Record<UserRole, React.ReactNode> = {
     'Admin': <UserCheck className="h-5 w-5" />,
@@ -124,7 +124,7 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onDelete(user); }}>
+                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); }}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                     </AlertDialogTrigger>
@@ -180,7 +180,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
             filtered.sort((a, b) => {
                 const orderA = priorityOrder[a.priority];
                 const orderB = priorityOrder[b.priority];
-                return sortPriority === 'asc' ? orderA - orderB : orderB - a;
+                return sortPriority === 'asc' ? orderA - orderB : orderB - orderA;
             });
         }
         return filtered;

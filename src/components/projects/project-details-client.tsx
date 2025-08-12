@@ -237,6 +237,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <TableHead>Tarea</TableHead>
                                         <TableHead>Asignado a</TableHead>
                                         <TableHead>Estado</TableHead>
+                                        <TableHead>Entrega</TableHead>
                                         <TableHead>Notas</TableHead>
                                         <TableHead>Tiempo (Est/Real)</TableHead>
                                         <TableHead className="w-[100px]">Adjunto</TableHead>
@@ -294,6 +295,9 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                      <SignatureHistory history={task.signatureHistory || []} users={users} />
                                                 </div>
                                             </TableCell>
+                                            <TableCell>
+                                                <ClientSideDate dateString={task.deadline} />
+                                            </TableCell>
                                              <TableCell>
                                                 <Button variant="outline" size="sm" onClick={() => openNotesModal(task)}>
                                                     <MessageSquare className="mr-2 h-4 w-4" />
@@ -333,7 +337,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     ))}
                                     {stageTasks.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                                            <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                                                 Aún no hay tareas para este departamento.
                                             </TableCell>
                                         </TableRow>
