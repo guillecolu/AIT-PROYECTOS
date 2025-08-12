@@ -60,19 +60,19 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         doc.setFont('Inter', 'normal');
         doc.setFontSize(8);
         doc.setTextColor('#6B7280');
-        doc.text('Documento interno AIT – Generado automáticamente', M.l, pageHeight - M.b);
+        doc.text('Documento interno AIT – Generado automáticamente', M.l, pageHeight - M.b + 8);
         
         // QR Code
-        const projectUrl = `https://machinetrack-uauk1.web.app/dashboard/projects/${project.id}`;
+        const projectUrl = `https://studio--machinetrack-uauk1.us-central1.hosted.app/dashboard/projects/${project.id}`;
         const qrCodeDataUrl = await qrcode.toDataURL(projectUrl, {
             errorCorrectionLevel: 'M',
             margin: 1,
             width: 80 // Increased width for better quality
         });
-        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - qrSize , qrSize, qrSize);
+        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - 8, qrSize, qrSize);
 
         // Page number
-        doc.text(`Página ${pageNum} de ${totalPages}`, M.l, pageHeight - M.b, { align: 'left' });
+        doc.text(`Página ${pageNum} de ${totalPages}`, M.l, pageHeight - M.b + 8, { align: 'left' });
     };
     
     // Summary Cards
