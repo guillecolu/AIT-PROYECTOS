@@ -19,6 +19,7 @@ import { useData } from '@/hooks/use-data';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface TeamTasksClientProps {}
 
@@ -123,10 +124,22 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onDelete(user); }}>
+                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onDelete(user); }}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                     </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro de que quieres eliminar a este usuario?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción es permanente. Las tareas asignadas a {user.name} quedarán sin asignar.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(user)}>Sí, eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
                 </AlertDialog>
              </div>
         </div>
@@ -308,29 +321,34 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                     <CardContent className="p-2">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
-                                <div className="flex flex-col">
+                                 <Accordion type="multiple" defaultValue={userCategories} className="w-full">
                                     {userCategories.map(category => (
                                         groupedUsers[category] && (
-                                            <div key={category} className="p-2">
-                                                <h3 className="font-semibold text-sm text-muted-foreground px-2 py-1 flex items-center gap-2">
-                                                    {categoryIcons[category]}
-                                                    {category}
-                                                </h3>
-                                                {groupedUsers[category].map(user => (
-                                                    <SortableUserItem
-                                                        key={user.id}
-                                                        user={user}
-                                                        tasks={tasks}
-                                                        isSelected={selectedUser?.id === user.id}
-                                                        onSelect={setSelectedUser}
-                                                        onEdit={handleOpenUserModal}
-                                                        onDelete={setUserToDelete}
-                                                    />
-                                                ))}
-                                            </div>
+                                            <AccordionItem value={category} key={category} className="border-none">
+                                                <AccordionTrigger className="py-2 px-2 hover:bg-muted/50 rounded-md">
+                                                     <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                                                        {categoryIcons[category]}
+                                                        {category}
+                                                        <Badge variant="secondary" className="ml-2">{groupedUsers[category].length}</Badge>
+                                                    </h3>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="pl-4 pt-2">
+                                                     {groupedUsers[category].map(user => (
+                                                        <SortableUserItem
+                                                            key={user.id}
+                                                            user={user}
+                                                            tasks={tasks}
+                                                            isSelected={selectedUser?.id === user.id}
+                                                            onSelect={setSelectedUser}
+                                                            onEdit={handleOpenUserModal}
+                                                            onDelete={setUserToDelete}
+                                                        />
+                                                    ))}
+                                                </AccordionContent>
+                                            </AccordionItem>
                                         )
                                     ))}
-                                </div>
+                                 </Accordion>
                             </SortableContext>
                         </DndContext>
                     </CardContent>
@@ -468,3 +486,5 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         </div>
     );
 }
+
+    
