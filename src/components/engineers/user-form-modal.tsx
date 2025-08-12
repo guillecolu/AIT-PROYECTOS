@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import type { User, UserRole } from '@/lib/types';
 import { useEffect } from 'react';
 
-const userRoles: UserRole[] = ['Admin', 'Manager', 'Engineer', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+const userRoles: UserRole[] = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
 
 const userSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio.'),
@@ -36,7 +36,7 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
     defaultValues: {
       name: '',
       email: '',
-      role: 'Engineer',
+      role: 'Oficina Técnica',
     },
   });
 
@@ -61,7 +61,7 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
             form.reset({
                 name: '',
                 email: '',
-                role: 'Engineer',
+                role: 'Oficina Técnica',
             });
         }
     }

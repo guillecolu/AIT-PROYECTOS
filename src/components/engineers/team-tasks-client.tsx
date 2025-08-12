@@ -53,12 +53,12 @@ const priorityOrder: Record<TaskPriority, number> = {
     'Baja': 1,
 };
 
-const userCategories: UserRole[] = ['Admin', 'Manager', 'Dirección de Proyecto', 'Dirección de Área', 'Comercial', 'Engineer', 'Taller', 'Eléctrico'];
+const userCategories: UserRole[] = ['Admin', 'Manager', 'Dirección de Proyecto', 'Dirección de Área', 'Comercial', 'Oficina Técnica', 'Taller', 'Eléctrico'];
 
 const categoryIcons: Record<UserRole, React.ReactNode> = {
     'Admin': <UserCheck className="h-5 w-5" />,
     'Manager': <UserCheck className="h-5 w-5" />,
-    'Engineer': <Cog className="h-5 w-5" />,
+    'Oficina Técnica': <Cog className="h-5 w-5" />,
     'Taller': <Briefcase className="h-5 w-5" />,
     'Eléctrico': <Zap className="h-5 w-5" />,
     'Comercial': <Building className="h-5 w-5" />,
@@ -171,7 +171,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     
     useEffect(() => {
         if (!selectedUser && users.length > 0) {
-            setSelectedUser(users.find(u => u.role === 'Engineer') || users[0]);
+            setSelectedUser(users.find(u => u.role === 'Oficina Técnica') || users[0]);
         }
     }, [users, selectedUser]);
 
@@ -218,7 +218,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
 
         if (selectedUser?.id === userToDelete.id) {
             const newUsers = users.filter(u => u.id !== userToDelete.id);
-            setSelectedUser(newUsers.length > 0 ? newUsers.find(u => u.role === 'Engineer') || newUsers[0] : null);
+            setSelectedUser(newUsers.length > 0 ? newUsers.find(u => u.role === 'Oficina Técnica') || newUsers[0] : null);
         }
     };
 

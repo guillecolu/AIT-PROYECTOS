@@ -58,7 +58,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSave, project, use
         }
     }, [project, isOpen, form]);
 
-    const managers = users.filter(u => u.role === 'Engineer');
+    const managers = users.filter(u => u.role === 'Oficina Técnica');
 
     const onSubmit = async (data: ProjectEditFormData) => {
         setIsLoading(true);

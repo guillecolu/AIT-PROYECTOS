@@ -683,7 +683,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 const newStage = {
                     nombre: stageName,
                     estado: 'pendiente' as const,
-                    responsableId: users.find(u => u.role === 'Engineer')?.id || users[0].id,
+                    responsableId: users.find(u => u.role === 'Oficina Técnica')?.id || users[0].id,
                     porcentaje: 0,
                 };
                 return { ...part, stages: [...part.stages, newStage] };
@@ -812,7 +812,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
-    const managers = users.filter(u => u.role === 'Engineer');
+    const managers = users.filter(u => u.role === 'Oficina Técnica');
     const pendingTasksCount = useMemo(() => internalTasks.filter(t => t.status !== 'finalizada').length, [internalTasks]);
     
     return (
@@ -918,7 +918,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     <Card>
                         <CardContent className="p-6">
                             <TasksByComponent 
-                                tasks={internalTasks} 
+                                tasks={internalTasks.filter(t => t.partId === selectedPart?.id)} 
                                 users={users} 
                                 project={internalProject}
                                 commonTasks={commonTasks}

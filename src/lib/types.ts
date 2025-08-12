@@ -4,7 +4,7 @@ export interface AppConfig {
     logoUrl: string | null;
 }
 
-export type UserRole = 'Admin' | 'Manager' | 'Engineer' | 'Taller' | 'Eléctrico' | 'Comercial' | 'Dirección de Proyecto' | 'Dirección de Área';
+export type UserRole = 'Admin' | 'Manager' | 'Oficina Técnica' | 'Taller' | 'Eléctrico' | 'Comercial' | 'Dirección de Proyecto' | 'Dirección de Área';
 
 export interface User {
   id: string;
