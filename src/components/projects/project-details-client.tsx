@@ -43,6 +43,7 @@ import PartsRoadmap from './parts-roadmap';
 import { Input } from '../ui/input';
 import EditableField from '../ui/editable-field';
 import ProjectColorPicker from './project-color-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -728,7 +729,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveProject(updatedProject);
     }
 
-    const handleProjectFieldChange = async (field: 'name' | 'client' | 'color', value: string) => {
+    const handleProjectFieldChange = async (field: keyof Project, value: any) => {
         const updatedProject = { ...internalProject, [field]: value };
         setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
@@ -784,6 +785,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     }
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
+    const managers = users.filter(u => u.role === 'Engineer');
     
     return (
         <div className="space-y-6">
@@ -866,15 +868,41 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                          <div className="flex items-center md:justify-center text-muted-foreground">
                             <UserSquare className="h-4 w-4 mr-2"/>
                             <span>Jefe de Proyecto:</span>
-                            {projectManager && (
-                                <div className="flex items-center ml-2 font-medium text-foreground">
-                                    <Avatar className="h-6 w-6 mr-2">
-                                        <AvatarImage src={projectManager.avatar} />
-                                        <AvatarFallback>{projectManager.name[0]}</AvatarFallback>
-                                    </Avatar>
-                                    {projectManager.name}
-                                </div>
-                            )}
+                             <div className="w-48 ml-2">
+                                <Select
+                                    value={internalProject.projectManagerId}
+                                    onValueChange={(newManagerId) => handleProjectFieldChange('projectManagerId', newManagerId)}
+                                >
+                                    <SelectTrigger className="h-8 border-dashed">
+                                        <SelectValue>
+                                            {projectManager ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={projectManager.avatar} />
+                                                        <AvatarFallback>{projectManager.name[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    {projectManager.name}
+                                                </div>
+                                            ) : (
+                                                "Seleccionar..."
+                                            )}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {managers.map(user => (
+                                            <SelectItem key={user.id} value={user.id}>
+                                                <div className="flex items-center gap-2">
+                                                     <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={user.avatar} />
+                                                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    {user.name}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -910,7 +938,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                                 tasks={internalTasks} 
                                 users={users} 
                                 project={internalProject}
-                                projects={projects}
                                 commonTasks={commonTasks}
                                 commonDepartments={commonDepartments}
                                 onTaskUpdate={handleTaskUpdate} 
