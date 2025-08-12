@@ -93,6 +93,7 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
     
     const userTasks = tasks.filter(t => t.assignedToId === user.id);
     const workloadStatus = getWorkloadStatus(userTasks);
+    const hasUrgentTask = userTasks.some(t => t.isUrgent);
 
     return (
         <div ref={setNodeRef} style={style} className="relative group rounded-md touch-none">
@@ -111,7 +112,10 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                    <p className="font-medium text-sm">{user.name}</p>
+                    <p className="font-medium text-sm flex items-center gap-2">
+                        {user.name}
+                        {hasUrgentTask && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                    </p>
                     <Badge variant="outline" className={cn("text-xs font-medium capitalize mt-1", statusBadgeClasses[workloadStatus])}>
                         <span className={cn("h-2 w-2 rounded-full mr-1.5", statusDotClasses[workloadStatus])}></span>
                         {workloadStatus === 'retrasado' ? 'Con retraso' : 'En tiempo'}
@@ -321,7 +325,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                     <CardContent className="p-2">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
-                                 <Accordion type="multiple" defaultValue={userCategories} className="w-full">
+                                 <Accordion type="multiple" className="w-full">
                                     {userCategories.map(category => (
                                         groupedUsers[category] && (
                                             <AccordionItem value={category} key={category} className="border-none">
@@ -486,5 +490,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         </div>
     );
 }
+
+    
 
     
