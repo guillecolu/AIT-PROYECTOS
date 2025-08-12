@@ -29,7 +29,7 @@ interface DataContextProps {
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
   uploadFile: (file: File, path: string) => Promise<string>;
-  saveAppConfig: (config: AppConfig) => Promise<void>;
+  saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
@@ -82,9 +82,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     fetchData();
   }, [fetchData]);
   
-  const saveAppConfig = async (config: AppConfig) => {
-    setAppConfig(config);
-    await setDoc(doc(db, "appConfig", "main"), config);
+  const saveAppConfig = async (configUpdate: Partial<AppConfig>) => {
+    const configRef = doc(db, 'appConfig', 'main');
+    const docSnap = await getDoc(configRef);
+    const currentConfig = docSnap.exists() ? docSnap.data() : {};
+    const newConfig = { ...currentConfig, ...configUpdate };
+    
+    await setDoc(configRef, newConfig);
+    setAppConfig(newConfig as AppConfig);
   };
 
   const uploadFile = async (file: File, path: string): Promise<string> => {
@@ -341,3 +346,5 @@ export const useData = () => {
   }
   return context;
 };
+
+    
