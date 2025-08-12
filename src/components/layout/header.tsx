@@ -18,8 +18,13 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import MeetingModal from "@/components/meeting-modal";
 import Image from "next/image";
+import { useData } from "@/hooks/use-data";
+import LogoManager from "./logo-manager";
+
 
 export default function AppHeader() {
+  const { appConfig } = useData();
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
       <Sheet>
@@ -35,13 +40,17 @@ export default function AppHeader() {
               href="/dashboard"
               className="group flex h-10 shrink-0 items-center justify-center gap-2 rounded-full text-lg font-semibold text-primary-foreground md:text-base"
             >
-              <Image
-                src="https://placehold.co/120x40.png"
-                alt="AIT Logo"
-                width={120}
-                height={40}
-                data-ai-hint="logo"
-              />
+              {appConfig.logoUrl ? (
+                  <Image
+                      src={appConfig.logoUrl}
+                      alt="AIT Logo"
+                      width={120}
+                      height={40}
+                      style={{ objectFit: 'contain' }}
+                  />
+              ) : (
+                  <span className="font-bold text-lg text-foreground">AIT</span>
+              )}
               <span className="sr-only">AIT</span>
             </Link>
             <Link
@@ -86,6 +95,9 @@ export default function AppHeader() {
             <DropdownMenuContent align="end">
             <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <LogoManager />
+            </DropdownMenuItem>
             <DropdownMenuItem>Configuración</DropdownMenuItem>
             <DropdownMenuItem>Soporte</DropdownMenuItem>
             <DropdownMenuSeparator />

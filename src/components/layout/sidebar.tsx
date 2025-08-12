@@ -7,8 +7,11 @@ import {
 } from "@/components/ui/tooltip";
 import { LayoutDashboard, Users, Archive } from "lucide-react";
 import Image from "next/image";
+import { useData } from "@/hooks/use-data";
 
 export default function AppSidebar() {
+  const { appConfig } = useData();
+
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
       <TooltipProvider>
@@ -17,14 +20,17 @@ export default function AppSidebar() {
           href="/dashboard"
           className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
         >
-           <Image
-              src="https://placehold.co/32x32.png"
+          {appConfig.logoUrl ? (
+            <Image
+              src={appConfig.logoUrl}
               alt="AIT Logo"
               width={32}
               height={32}
-              className="rounded-full"
-              data-ai-hint="logo"
+              className="rounded-full object-contain"
             />
+           ) : (
+            <span className="font-bold text-xs">AIT</span>
+           )}
           <span className="sr-only">AIT</span>
         </Link>
         <Tooltip>

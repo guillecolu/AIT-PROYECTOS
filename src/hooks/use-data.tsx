@@ -2,9 +2,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask } from '@/lib/types';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as mime from 'mime-types';
 
@@ -12,6 +12,7 @@ interface DataContextProps {
   projects: Project[];
   tasks: Task[];
   users: User[];
+  appConfig: AppConfig;
   commonDepartments: string[];
   commonTasks: CommonTask[];
   loading: boolean;
@@ -28,6 +29,7 @@ interface DataContextProps {
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
   uploadFile: (file: File, path: string) => Promise<string>;
+  saveAppConfig: (config: AppConfig) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
@@ -36,6 +38,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [appConfig, setAppConfig] = useState<AppConfig>({ logoUrl: null });
   const [commonDepartments, setCommonDepartments] = useState<string[]>([]);
   const [commonTasks, setCommonTasks] = useState<CommonTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +46,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap] = await Promise.all([
+      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap, appConfigSnap] = await Promise.all([
         getDocs(collection(db, "projects")),
         getDocs(collection(db, "tasks")),
         getDocs(collection(db, "users")),
         getDocs(collection(db, "commonDepartments")),
         getDocs(collection(db, "commonTasks")),
+        getDoc(doc(db, "appConfig", "main")),
       ]);
 
       let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
@@ -56,12 +60,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
       const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
       const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
+      const appConfigData = appConfigSnap.exists() ? appConfigSnap.data() as AppConfig : { logoUrl: null };
 
       setProjects(projectsData);
       setTasks(tasksData);
       setUsers(usersData);
       setCommonDepartments(commonDeptData);
       setCommonTasks(commonTasksData);
+      setAppConfig(appConfigData);
 
     } catch (error) {
       console.error("Error fetching data from Firestore: ", error);
@@ -73,6 +79,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
+  const saveAppConfig = async (config: AppConfig) => {
+    setAppConfig(config);
+    await setDoc(doc(db, "appConfig", "main"), config);
+  };
 
   const uploadFile = async (file: File, path: string): Promise<string> => {
     const storageRef = ref(storage, path);
@@ -294,6 +305,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     projects,
     tasks,
     users,
+    appConfig,
     commonDepartments,
     commonTasks,
     loading,
@@ -310,6 +322,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     saveCommonDepartment,
     saveCommonTask,
     uploadFile,
+    saveAppConfig,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
