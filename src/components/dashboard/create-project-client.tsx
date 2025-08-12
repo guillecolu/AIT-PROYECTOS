@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -183,7 +184,7 @@ export default function CreateProjectClient() {
                     </FormItem>
                  )}/>
                   <FormField name="projectManagerId" render={({ field }) => (
-                    <FormItem className="pt-2">
+                    <FormItem className="flex flex-col pt-2">
                         <FormLabel>Jefe de Proyecto</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
