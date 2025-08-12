@@ -135,7 +135,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSave, project, use
                                 </FormItem>
                             )}/>
                                 <FormField name="projectManagerId" render={({ field }) => (
-                                <FormItem className="pt-2">
+                                <FormItem className="flex flex-col pt-2">
                                     <FormLabel>Jefe de Proyecto</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
