@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -540,6 +539,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const [taskForNotes, setTaskForNotes] = useState<Task | null>(null);
+    const [isEditingManager, setIsEditingManager] = useState(false);
 
     // Use internal state to manage optimistic updates for project and tasks
     const [internalProject, setInternalProject] = useState(initialProject);
@@ -869,44 +869,42 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                             <CheckCircle className="h-4 w-4 mr-2"/>
                             <span>Entrega: {internalProject.deliveryDate ? <ClientSideDate dateString={internalProject.deliveryDate} /> : ''}</span>
                         </div>
-                         <div className="flex items-center md:justify-center text-muted-foreground">
+                         <div className="flex items-center md:justify-center text-muted-foreground group">
                             <UserSquare className="h-4 w-4 mr-2"/>
                             <span>Jefe de Proyecto:</span>
-                             <div className="w-48 ml-2">
+                            {isEditingManager ? (
+                                <div className="w-48 ml-2">
                                 <Select
                                     value={internalProject.projectManagerId}
-                                    onValueChange={(newManagerId) => handleProjectFieldChange('projectManagerId', newManagerId)}
+                                    onValueChange={(newManagerId) => {
+                                        handleProjectFieldChange('projectManagerId', newManagerId);
+                                        setIsEditingManager(false);
+                                    }}
+                                    onOpenChange={(isOpen) => {
+                                        if (!isOpen) setIsEditingManager(false);
+                                    }}
+                                    defaultOpen
                                 >
                                     <SelectTrigger className="h-8 border-dashed">
                                         <SelectValue>
-                                            {projectManager ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Avatar className="h-6 w-6">
-                                                        <AvatarImage src={projectManager.avatar} />
-                                                        <AvatarFallback>{projectManager.name[0]}</AvatarFallback>
-                                                    </Avatar>
-                                                    {projectManager.name}
-                                                </div>
-                                            ) : (
-                                                "Seleccionar..."
-                                            )}
+                                            {projectManager ? projectManager.name : "Seleccionar..."}
                                         </SelectValue>
                                     </SelectTrigger>
                                     <SelectContent>
                                         {managers.map(user => (
-                                            <SelectItem key={user.id} value={user.id}>
-                                                <div className="flex items-center gap-2">
-                                                     <Avatar className="h-6 w-6">
-                                                        <AvatarImage src={user.avatar} />
-                                                        <AvatarFallback>{user.name[0]}</AvatarFallback>
-                                                    </Avatar>
-                                                    {user.name}
-                                                </div>
-                                            </SelectItem>
+                                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                            </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium text-foreground ml-2">{projectManager?.name || 'No asignado'}</span>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => setIsEditingManager(true)}>
+                                        <Edit className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </CardContent>
