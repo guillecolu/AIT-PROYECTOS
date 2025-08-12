@@ -107,7 +107,7 @@ export default function CreateProjectClient() {
     }
   };
 
-  const managers = users.filter(u => u.role === 'Manager' || u.role === 'Admin' || u.role === 'Dirección de Proyecto');
+  const managers = users.filter(u => u.role === 'Engineer');
 
   return (
     <Form {...form}>
