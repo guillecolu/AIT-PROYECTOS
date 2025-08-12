@@ -794,7 +794,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     
     return (
         <div className="space-y-6">
-            <Card>
+            <Card onDoubleClick={() => setIsEditModalOpen(true)} className="cursor-pointer">
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
