@@ -66,7 +66,7 @@ const statusColorClasses: Record<TaskStatus, string> = {
     finalizada: 'bg-green-100 text-green-800',
 };
 
-const ClientSideDate = ({ dateString, format = 'P' }: { dateString: string, format?: 'P' | 'PPpp' }) => {
+const ClientSideDate = ({ dateString, format = 'dd/MM/yyyy' }: { dateString: string, format?: 'dd/MM/yyyy' | 'PPpp' }) => {
     const [formattedDate, setFormattedDate] = useState('');
     const { format: formatDate, es } = require('date-fns');
 

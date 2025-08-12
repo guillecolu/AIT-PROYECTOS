@@ -71,7 +71,8 @@ const ClientSideDate = ({ dateString }: { dateString: string }) => {
     const [formattedDate, setFormattedDate] = useState('');
 
     useEffect(() => {
-        setFormattedDate(new Date(dateString).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }));
+        const { format, es } = require('date-fns');
+        setFormattedDate(format(new Date(dateString), 'dd/MM/yyyy', { locale: es }));
     }, [dateString]);
 
     return <>{formattedDate}</>;
