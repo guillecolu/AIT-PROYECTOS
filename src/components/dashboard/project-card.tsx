@@ -136,9 +136,9 @@ export default function ProjectCard({ project, users }: { project: Project, user
                     )}>
                         {deliveryText}
                     </div>
-                     {status !== 'cerrado' && (
-                        <div className="flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation()}}>
-                             <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-8 w-8'/>
+                    <div className="flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation()}}>
+                            <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-8 w-8'/>
+                        {status !== 'cerrado' && (
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -147,35 +147,35 @@ export default function ProjectCard({ project, users }: { project: Project, user
                             >
                                 <AlertTriangle className={cn("h-4 w-4 text-muted-foreground", isUrgent && "text-destructive fill-destructive/20")} />
                             </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8"
-                                    >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Esto eliminará permanentemente el proyecto
-                                        <span className="font-bold"> {name} </span>
-                                        y todas sus tareas asociadas.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-                                        {isDeleting ? "Eliminando..." : "Sí, eliminar proyecto"}
-                                    </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    )}
+                        )}
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Esto eliminará permanentemente el proyecto
+                                    <span className="font-bold"> {name} </span>
+                                    y todas sus tareas asociadas.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                                    {isDeleting ? "Eliminando..." : "Sí, eliminar proyecto"}
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                 </CardFooter>
             </Card>
         </Link>
