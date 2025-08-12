@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TaskFormModal from '@/components/projects/task-form-modal';
@@ -121,9 +121,13 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(user)}>
                     <Pencil className="h-4 w-4 text-muted-foreground" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(user)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); onDelete(user); }}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </AlertDialogTrigger>
+                </AlertDialog>
              </div>
         </div>
     );
