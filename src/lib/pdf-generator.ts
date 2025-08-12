@@ -54,24 +54,25 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
     const addFooter = async (doc: jsPDFWithAutoTable, pageNum: number, totalPages: number) => {
         const pageHeight = doc.internal.pageSize.getHeight();
         const rightX = doc.internal.pageSize.getWidth() - M.r;
+        const qrSize = 20;
 
         // Footer text
         doc.setFont('Inter', 'normal');
         doc.setFontSize(8);
         doc.setTextColor('#6B7280');
-        doc.text('Documento interno AIT – Generado automáticamente', M.l, pageHeight - M.b + 6);
+        doc.text('Documento interno AIT – Generado automáticamente', M.l, pageHeight - M.b);
         
         // QR Code
         const projectUrl = `${window.location.origin}/dashboard/projects/${project.id}`;
         const qrCodeDataUrl = await qrcode.toDataURL(projectUrl, {
             errorCorrectionLevel: 'M',
             margin: 1,
-            width: 70
+            width: 80 // Increased width for better quality
         });
-        doc.addImage(qrCodeDataUrl, 'PNG', rightX - 20, pageHeight - M.b, 20, 20);
+        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - (qrSize/2) , qrSize, qrSize);
 
         // Page number
-        doc.text(`Página ${pageNum} de ${totalPages}`, rightX - 22, pageHeight - M.b + 6, { align: 'right' });
+        doc.text(`Página ${pageNum} de ${totalPages}`, rightX, pageHeight - M.b, { align: 'right' });
     };
     
     // Summary Cards
@@ -212,12 +213,12 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         },
         didDrawPage: async (data) => {
             addHeader(doc);
-            await addFooter(doc, data.pageNumber, (doc.internal as any).pages.length || 0);
+            // We'll call the footer after the table is drawn to get total pages
         },
     });
     
-    // Ensure footer is on all pages
-    const totalPages = (doc.internal as any).pages.length || 1;
+    // Add footers to all pages now that we know the total page count
+    const totalPages = (doc.internal as any).pages.length || doc.internal.getNumberOfPages();
     for(let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         await addFooter(doc, i, totalPages);
