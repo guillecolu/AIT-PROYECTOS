@@ -13,6 +13,7 @@ export interface User {
   email: string;
   avatar: string; // URL to avatar image
   assignedProjectIds: string[];
+  order?: number;
 }
 
 export type ProjectStatus = 'activo' | 'cerrado' | 'pausado';
@@ -58,6 +59,7 @@ export interface Project {
   changeHistory?: { date: string; change: string }[];
   isUrgent?: boolean;
   color?: string;
+  order?: number;
 }
 
 export type TaskStatus = 'pendiente' | 'para-soldar' | 'montada' | 'finalizada' | 'en-progreso';

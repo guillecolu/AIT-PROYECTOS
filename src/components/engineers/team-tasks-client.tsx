@@ -10,12 +10,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil } from 'lucide-react';
+import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TaskFormModal from '@/components/projects/task-form-modal';
 import MeetingModal from '../meeting-modal';
 import UserFormModal from './user-form-modal';
 import { useData } from '@/hooks/use-data';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TeamTasksClientProps {}
 
@@ -73,8 +76,62 @@ const ClientSideDate = ({ dateString }: { dateString: string }) => {
     return <>{formattedDate}</>;
 };
 
+const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete }: { user: User, tasks: Task[], isSelected: boolean, onSelect: (user: User) => void, onEdit: (user: User) => void, onDelete: (user: User) => void }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({ id: user.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    
+    const userTasks = tasks.filter(t => t.assignedToId === user.id);
+    const workloadStatus = getWorkloadStatus(userTasks);
+
+    return (
+        <div ref={setNodeRef} style={style} className="relative group rounded-md touch-none">
+             <div
+                onClick={() => onSelect(user)}
+                className={cn(
+                    "flex items-center gap-3 p-2 text-left w-full hover:bg-accent transition-colors rounded-md",
+                    isSelected && "bg-accent"
+                )}
+            >
+                <div {...attributes} {...listeners} className="cursor-grab p-1">
+                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person face" />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <p className="font-medium text-sm">{user.name}</p>
+                    <Badge variant="outline" className={cn("text-xs font-medium capitalize mt-1", statusBadgeClasses[workloadStatus])}>
+                        <span className={cn("h-2 w-2 rounded-full mr-1.5", statusDotClasses[workloadStatus])}></span>
+                        {workloadStatus === 'retrasado' ? 'Con retraso' : 'En tiempo'}
+                    </Badge>
+                </div>
+            </div>
+             <div className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(user)}>
+                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(user)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+             </div>
+        </div>
+    );
+};
+
+
 export default function TeamTasksClient(props: TeamTasksClientProps) {
-    const { users, projects, tasks, saveTask, saveUser, deleteUser, loading } = useData();
+    const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading } = useData();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -82,6 +139,13 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [sortPriority, setSortPriority] = useState<'asc' | 'desc' | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
     
     useEffect(() => {
         if (!selectedUser && users.length > 0) {
@@ -166,6 +230,28 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         if (!selectedUser) return [];
         return projects.filter(p => selectedUser.assignedProjectIds.includes(p.id));
     }, [projects, selectedUser]);
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            setUsers((items) => {
+                const oldIndex = items.findIndex((item) => item.id === active.id);
+                const newIndex = items.findIndex((item) => item.id === over.id);
+                const newOrder = arrayMove(items, oldIndex, newIndex);
+
+                // Update order property and save to db
+                newOrder.forEach((user, index) => {
+                    if (user.order !== index) {
+                        user.order = index;
+                        saveUser(user);
+                    }
+                });
+
+                return newOrder;
+            });
+        }
+    };
     
      if (loading) {
          return <div>Cargando...</div>;
@@ -216,72 +302,33 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
             <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-8 items-start">
                 <Card>
                     <CardContent className="p-2">
-                        <div className="flex flex-col">
-                            {userCategories.map(category => (
-                                groupedUsers[category] && (
-                                    <div key={category} className="p-2">
-                                        <h3 className="font-semibold text-sm text-muted-foreground px-2 py-1 flex items-center gap-2">
-                                            {categoryIcons[category]}
-                                            {category}
-                                        </h3>
-                                        {groupedUsers[category].map(user => {
-                                             const userTasks = tasks.filter(t => t.assignedToId === user.id);
-                                             const workloadStatus = getWorkloadStatus(userTasks);
-                                             const isSelected = selectedUser?.id === user.id;
-
-                                             return (
-                                                <div key={user.id} className="relative group rounded-md">
-                                                    <button
-                                                        onClick={() => setSelectedUser(user)}
-                                                        className={cn(
-                                                            "flex items-center gap-3 p-2 text-left w-full hover:bg-accent transition-colors rounded-md",
-                                                            isSelected && "bg-accent"
-                                                        )}
-                                                    >
-                                                        <Avatar className="h-9 w-9">
-                                                            <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person face" />
-                                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="flex-1">
-                                                            <p className="font-medium text-sm">{user.name}</p>
-                                                            <Badge variant="outline" className={cn("text-xs font-medium capitalize mt-1", statusBadgeClasses[workloadStatus])}>
-                                                                <span className={cn("h-2 w-2 rounded-full mr-1.5", statusDotClasses[workloadStatus])}></span>
-                                                                {workloadStatus === 'retrasado' ? 'Con retraso' : 'En tiempo'}
-                                                            </Badge>
-                                                        </div>
-                                                    </button>
-                                                     <div className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenUserModal(user)}>
-                                                            <Pencil className="h-4 w-4 text-muted-foreground" />
-                                                        </Button>
-                                                        <AlertDialog open={userToDelete?.id === user.id} onOpenChange={(open) => !open && setUserToDelete(null)}>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setUserToDelete(user)}>
-                                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                                </Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario
-                                                                        <span className="font-bold"> {userToDelete?.name}</span> y desasignará sus tareas.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleDeleteUser}>Sí, eliminar</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                     </div>
-                                                </div>
-                                             )
-                                        })}
-                                    </div>
-                                )
-                            ))}
-                        </div>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
+                                <div className="flex flex-col">
+                                    {userCategories.map(category => (
+                                        groupedUsers[category] && (
+                                            <div key={category} className="p-2">
+                                                <h3 className="font-semibold text-sm text-muted-foreground px-2 py-1 flex items-center gap-2">
+                                                    {categoryIcons[category]}
+                                                    {category}
+                                                </h3>
+                                                {groupedUsers[category].map(user => (
+                                                    <SortableUserItem
+                                                        key={user.id}
+                                                        user={user}
+                                                        tasks={tasks}
+                                                        isSelected={selectedUser?.id === user.id}
+                                                        onSelect={setSelectedUser}
+                                                        onEdit={handleOpenUserModal}
+                                                        onDelete={setUserToDelete}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )
+                                    ))}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
                     </CardContent>
                 </Card>
 
@@ -376,6 +423,23 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                     </Card>
                 ) }
             </div>
+
+            <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario
+                            <span className="font-bold"> {userToDelete?.name}</span> y desasignará sus tareas.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteUser}>Sí, eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
             { selectedUser && <TaskFormModal 
                 isOpen={isTaskModalOpen}
                 onClose={() => setIsTaskModalOpen(false)}

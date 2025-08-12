@@ -30,6 +30,8 @@ interface DataContextProps {
   saveCommonTask: (task: CommonTask) => void;
   uploadFile: (file: File, path: string) => Promise<string>;
   saveAppConfig: (config: AppConfig) => Promise<void>;
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
@@ -55,9 +57,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         getDoc(doc(db, "appConfig", "main")),
       ]);
 
-      let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+      let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).sort((a,b) => (a.order || 0) - (b.order || 0));
       let tasksData = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-      let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
       const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
       const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
       const appConfigData = appConfigSnap.exists() ? appConfigSnap.data() as AppConfig : { logoUrl: null };
@@ -169,7 +171,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     } else {
       const newId = doc(collection(db, "projects")).id;
-      updatedProject = { ...projectData, id: newId };
+      const order = projects.length;
+      updatedProject = { ...projectData, id: newId, order };
       setProjects(prev => [...prev, updatedProject]);
     }
     
@@ -266,7 +269,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updatedUser = user;
     } else {
       const newId = doc(collection(db, "users")).id;
-      updatedUser = { ...user, id: newId };
+      const order = users.length;
+      updatedUser = { ...user, id: newId, order };
     }
 
     const userForDb = JSON.parse(JSON.stringify(updatedUser));
@@ -323,6 +327,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     saveCommonTask,
     uploadFile,
     saveAppConfig,
+    setProjects,
+    setUsers,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

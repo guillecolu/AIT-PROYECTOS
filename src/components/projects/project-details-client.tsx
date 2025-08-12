@@ -777,6 +777,12 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         });
     };
     
+    const handlePartOrderChange = async (newParts: Part[]) => {
+        const updatedProject = { ...internalProject, parts: newParts };
+        setInternalProject(updatedProject);
+        await saveProject(updatedProject);
+    }
+
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
     
     return (
@@ -881,6 +887,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 onPartNameChange={handlePartNameChange}
                 onAddPart={() => handleAddPart()}
                 onPartDelete={handlePartDelete}
+                onPartOrderChange={handlePartOrderChange}
             />
 
             <Tabs defaultValue="tasks">
