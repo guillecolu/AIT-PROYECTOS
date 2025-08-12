@@ -7,6 +7,7 @@ import ProjectCard from './project-card';
 import { Input } from '../ui/input';
 import { Archive, Loader2, Search } from 'lucide-react';
 import { useData } from '@/hooks/use-data';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function ArchiveClient() {
     const { projects, users, loading } = useData();
@@ -22,6 +23,24 @@ export default function ArchiveClient() {
             return project.name.toLowerCase().includes(term) || project.client.toLowerCase().includes(term);
         });
     }, [closedProjects, searchTerm]);
+
+    const projectsByYear = useMemo(() => {
+        const grouped = filteredProjects.reduce((acc, project) => {
+            const year = new Date(project.deliveryDate).getFullYear().toString();
+            if (!acc[year]) {
+                acc[year] = [];
+            }
+            acc[year].push(project);
+            return acc;
+        }, {} as Record<string, Project[]>);
+
+        // Sort years in descending order
+        return Object.keys(grouped).sort((a, b) => Number(b) - Number(a)).reduce((obj, key) => {
+            obj[key] = grouped[key];
+            return obj;
+        }, {} as Record<string, Project[]>);
+
+    }, [filteredProjects]);
     
     if (loading) {
         return <div className="flex items-center justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
@@ -45,12 +64,23 @@ export default function ArchiveClient() {
                  </div>
             </div>
 
-            {filteredProjects.length > 0 ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {filteredProjects.map(project => (
-                        <ProjectCard key={project.id} project={project} users={users} />
+            {Object.keys(projectsByYear).length > 0 ? (
+                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={Object.keys(projectsByYear)}>
+                    {Object.entries(projectsByYear).map(([year, yearProjects]) => (
+                        <AccordionItem value={year} key={year} className="border-none">
+                            <AccordionTrigger className="text-xl font-headline bg-muted/40 hover:bg-muted/60 px-4 rounded-md hover:no-underline">
+                                Año {year} ({yearProjects.length} proyectos)
+                            </AccordionTrigger>
+                            <AccordionContent className="pt-6">
+                                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {yearProjects.map(project => (
+                                        <ProjectCard key={project.id} project={project} users={users} />
+                                    ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
                     ))}
-                </div>
+                </Accordion>
             ) : (
                 <div className="col-span-full text-center py-20 text-muted-foreground bg-card rounded-lg border">
                     <Archive className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
