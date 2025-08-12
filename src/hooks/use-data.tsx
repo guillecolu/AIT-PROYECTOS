@@ -3,8 +3,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { Project, Task, User, Part, Stage, CommonTask } from '@/lib/types';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as mime from 'mime-types';
 
 interface DataContextProps {
   projects: Project[];
@@ -18,13 +20,14 @@ interface DataContextProps {
   getUsers: () => User[];
   saveProject: (project: Omit<Project, 'id'> | Project) => Promise<Project>;
   deleteProject: (projectId: string) => Promise<void>;
-  saveTask: (task: Omit<Task, 'id'> | Task) => Promise<Task>;
+  saveTask: (task: Omit<Task, 'id'> | Task, attachment?: File) => Promise<Task>;
   deleteTask: (taskId: string) => Promise<void>;
   saveUser: (user: Omit<User, 'id'> | User) => Promise<User>;
   deleteUser: (userId: string) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
+  uploadFile: (file: File, path: string) => Promise<string>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
@@ -67,10 +70,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Fetch initial data from Firestore
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const uploadFile = async (file: File, path: string): Promise<string> => {
+    const storageRef = ref(storage, path);
+    const contentType = mime.lookup(file.name) || 'application/octet-stream';
+    const metadata = { contentType };
+    await uploadBytes(storageRef, file, metadata);
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+  }
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
     if (commonDepartments.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
@@ -170,7 +181,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
   
-  const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
+  const saveTask = async (taskData: Omit<Task, 'id'> | Task, attachment?: File): Promise<Task> => {
     let updatedTask: Task;
     if ('id' in taskData) {
         updatedTask = { ...taskData };
@@ -179,6 +190,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         updatedTask = { ...taskData, id: newId } as Task;
     }
     
+    if (attachment) {
+        const filePath = `tasks/${updatedTask.id}/${attachment.name}`;
+        const downloadURL = await uploadFile(attachment, filePath);
+        updatedTask.attachmentURL = downloadURL;
+        updatedTask.attachmentName = attachment.name;
+    }
+
     setTasks(currentTasks => {
         let newTasks;
         const taskIndex = currentTasks.findIndex(t => t.id === updatedTask.id);
@@ -291,6 +309,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     addPartToProject,
     saveCommonDepartment,
     saveCommonTask,
+    uploadFile,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

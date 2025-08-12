@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save } from 'lucide-react';
+import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip } from 'lucide-react';
 import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -120,7 +120,7 @@ function SignatureHistory({ history, users }: { history: Signature[], users: Use
 }
 
 
-function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
+function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>, attachment?: File) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
     
@@ -158,8 +158,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
         setIsTaskModalOpen(true);
     }
 
-    const handleSaveTask = (taskData: Omit<Task, 'id'> | Task) => {
-        onTaskUpdate(taskData);
+    const handleSaveTask = (taskData: Omit<Task, 'id'> | Task, attachment?: File) => {
+        onTaskUpdate(taskData, attachment);
     };
     
     const handleAddCustomStage = () => {
@@ -238,6 +238,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <TableHead>Estado</TableHead>
                                         <TableHead>Notas</TableHead>
                                         <TableHead>Tiempo (Est/Real)</TableHead>
+                                        <TableHead className="w-[100px]">Adjunto</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -300,6 +301,15 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             </TableCell>
                                             <TableCell>{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
                                             <TableCell>
+                                                {task.attachmentURL && (
+                                                     <Button variant="outline" size="icon" asChild>
+                                                        <a href={task.attachmentURL} target="_blank" rel="noopener noreferrer" title={task.attachmentName}>
+                                                            <Paperclip className="h-4 w-4" />
+                                                        </a>
+                                                    </Button>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon">
@@ -322,7 +332,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     ))}
                                     {stageTasks.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                                            <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                                                 Aún no hay tareas para este departamento.
                                             </TableCell>
                                         </TableRow>
@@ -580,7 +590,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         setIsNotesModalOpen(true);
     };
 
-    const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>) => {
+    const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>, attachment?: File) => {
         // Optimistically update UI
         if ('id' in updatedTaskData) {
             setInternalTasks(prevTasks => prevTasks.map(t => t.id === updatedTaskData.id ? { ...t, ...updatedTaskData } : t));
@@ -589,7 +599,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setInternalTasks(prevTasks => [...prevTasks, newTask]);
         }
         
-        const savedTask = await saveTask(updatedTaskData);
+        const savedTask = await saveTask(updatedTaskData, attachment);
         
         // After DB save, get the latest project state
         const updatedProject = await saveProject(project); // This might be redundant if saveTask returns it

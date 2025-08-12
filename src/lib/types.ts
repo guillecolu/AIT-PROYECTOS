@@ -88,7 +88,8 @@ export interface Task {
   finalizedAt?: string; // ISO date string
   signatureHistory?: Signature[];
   comments?: TaskComment[];
-  attachments?: { name: string; url: string }[];
+  attachmentURL?: string;
+  attachmentName?: string;
   priority: TaskPriority;
   deadline: string; // ISO date string
   progress: number; // 0-100
