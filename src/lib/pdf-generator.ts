@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Project, Task, User, TaskComponent } from './types';
+import type { Project, Task, User, Part } from './types';
 import qrcode from 'qrcode';
 
 
@@ -85,62 +85,83 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
     const summaryText = `Total: ${pendingTasks.length}    Pendientes semana: ${tasksThisWeek.length}    Retrasadas: ${delayedTasksCount}    Horas pendientes: ${estimatedHours}h`;
     doc.text(summaryText, M.l, summaryY);
 
-    const groupedTasks: Record<string, Task[]> = pendingTasks.reduce((acc, task) => {
-        const dept = task.component || 'Sin Departamento';
-        if (!acc[dept]) {
-            acc[dept] = [];
+    const getPartName = (partId: string) => project.parts?.find(p => p.id === partId)?.name || 'Parte General';
+
+    const groupedTasks: Record<string, Record<string, Task[]>> = pendingTasks.reduce((acc, task) => {
+        const partName = getPartName(task.partId);
+        const deptName = task.component || 'Sin Departamento';
+
+        if (!acc[partName]) {
+            acc[partName] = {};
         }
-        acc[dept].push(task);
+        if (!acc[partName][deptName]) {
+            acc[partName][deptName] = [];
+        }
+        acc[partName][deptName].push(task);
         return acc;
-    }, {} as Record<string, Task[]>);
+    }, {} as Record<string, Record<string, Task[]>>);
 
     let tableBody: any[] = [];
     const priorityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
-
-    Object.keys(groupedTasks).sort().forEach(dept => {
-        // Add a group header row
+    
+    Object.keys(groupedTasks).sort().forEach(partName => {
+        // Add a group header row for the Part
         tableBody.push([{
-            content: dept,
+            content: partName,
             colSpan: 8,
             styles: {
-                fillColor: '#FAD4D4',
-                textColor: '#BE1E2D',
+                fillColor: '#374151', // Darker gray for parts
+                textColor: '#FFFFFF',
                 fontStyle: 'bold',
                 halign: 'left'
             }
         }]);
 
-        // Sort tasks within the group
-        const sortedTasks = groupedTasks[dept].sort((a, b) => {
-            const priorityA = priorityOrder[a.priority] || 4;
-            const priorityB = priorityOrder[b.priority] || 4;
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-            return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-        });
+        const depts = groupedTasks[partName];
+        Object.keys(depts).sort().forEach(deptName => {
+            // Add a group header row for the Department
+            tableBody.push([{
+                content: deptName,
+                colSpan: 8,
+                styles: {
+                    fillColor: '#FAD4D4',
+                    textColor: '#BE1E2D',
+                    fontStyle: 'bold',
+                    halign: 'left'
+                }
+            }]);
 
-        // Add task rows
-        sortedTasks.forEach(task => {
-            const assignedUser = users.find(u => u.id === task.assignedToId);
-            const delay = differenceInDays(today, new Date(task.deadline));
-            
-            tableBody.push([
-                task.component,
-                task.title,
-                assignedUser?.name || 'N/A',
-                task.priority,
-                format(new Date(task.deadline), 'dd/MM/yy'),
-                delay > 0 ? `${delay} días` : '—',
-                `${task.estimatedTime}h`,
-                'Sí',
-            ]);
+            // Sort tasks within the group
+            const sortedTasks = depts[deptName].sort((a, b) => {
+                const priorityA = priorityOrder[a.priority] || 4;
+                const priorityB = priorityOrder[b.priority] || 4;
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+                return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            });
+
+            // Add task rows
+            sortedTasks.forEach(task => {
+                const assignedUser = users.find(u => u.id === task.assignedToId);
+                const delay = differenceInDays(today, new Date(task.deadline));
+                
+                tableBody.push([
+                    task.title,
+                    assignedUser?.name || 'N/A',
+                    task.priority,
+                    format(new Date(task.deadline), 'dd/MM/yy'),
+                    delay > 0 ? `${delay} días` : '—',
+                    `${task.estimatedTime}h`,
+                    'Sí',
+                ]);
+            });
         });
     });
 
 
     autoTable(doc, {
-        head: [['Departamento', 'Tarea', 'Asignado', 'Prioridad', 'Entrega', 'Retraso', 'Horas', 'Firma']],
+        head: [['Tarea', 'Asignado', 'Prioridad', 'Entrega', 'Retraso', 'Horas', 'Firma']],
         body: tableBody,
         startY: M.t + 34,
         margin: { left: M.l, right: M.r },
@@ -148,11 +169,10 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         styles: {
             font: 'Inter',
             fontSize: 9,
-            cellPadding: 3,
+            cellPadding: 2,
             lineColor: '#E5E7EB',
             lineWidth: 0.1,
-            overflow: 'linebreak',
-            minCellHeight: 6,
+            overflow: 'linebreak'
         },
         headStyles: {
             fillColor: '#F5F5F5',
@@ -164,34 +184,40 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
             fillColor: '#FBFBFB'
         },
         columnStyles: {
-            0: { cellWidth: 28 }, // Dept
-            1: { cellWidth: 52 }, // Tarea
-            2: { cellWidth: 24 }, // Asignado
-            3: { cellWidth: 18 }, // Prioridad
-            4: { cellWidth: 20 }, // Entrega
-            5: { cellWidth: 16, halign: 'right' }, // Retraso
-            6: { cellWidth: 14, halign: 'right' }, // Horas
-            7: { cellWidth: 14, halign: 'center' }, // Firma
+            0: { cellWidth: 70 }, // Tarea
+            1: { cellWidth: 26 }, // Asignado
+            2: { cellWidth: 18 }, // Prioridad
+            3: { cellWidth: 18 }, // Entrega
+            4: { cellWidth: 16, halign: 'right' }, // Retraso
+            5: { cellWidth: 14, halign: 'right' }, // Horas
+            6: { cellWidth: 14, halign: 'center' }, // Firma
         },
         didParseCell: (data) => {
+             // Do not render content for group header rows, we already have the content from the colSpan cell
+            if (data.row.raw.length === 1) {
+                if (data.row.raw[0].colSpan !== 8) {
+                    data.cell.text = [];
+                }
+                return;
+            }
             // High priority styling
-            if (data.column.dataKey === 3 && data.cell.raw === 'Alta') {
+            if (data.column.dataKey === 2 && data.cell.raw === 'Alta') {
                 data.cell.styles.textColor = '#BE1E2D';
                 data.cell.styles.fontStyle = 'bold';
             }
              // Delay styling
-            if (data.column.dataKey === 5 && (data.cell.raw as string).includes('días')) {
+            if (data.column.dataKey === 4 && (data.cell.raw as string).includes('días')) {
                 data.cell.styles.textColor = '#A46B00';
             }
         },
         didDrawPage: async (data) => {
             addHeader(doc);
-            await addFooter(doc, data.pageNumber, (doc.internal as any).pages.length);
+            await addFooter(doc, data.pageNumber, (doc.internal as any).pages.length || 0);
         },
     });
     
     // Ensure footer is on all pages
-    const totalPages = (doc.internal as any).pages.length;
+    const totalPages = (doc.internal as any).pages.length || 1;
     for(let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         await addFooter(doc, i, totalPages);
