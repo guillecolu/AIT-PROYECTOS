@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import TaskFormModal from '@/components/projects/task-form-modal';
 import TaskNotesModal from '@/components/projects/task-notes-modal';
+import TaskDescriptionModal from '@/components/projects/task-description-modal';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -123,7 +124,7 @@ function SignatureHistory({ history, users }: { history: Signature[], users: Use
 }
 
 
-function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>, attachment?: File) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
+function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>, attachment?: File) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
     
@@ -302,7 +303,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             <TableCell>{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="sm" onClick={() => handleOpenModalForEdit(task)}>
+                                                    <Button variant="outline" size="sm" onClick={() => openDescriptionModal(task)}>
                                                         Descripción
                                                     </Button>
                                                     <Button variant="outline" size="sm" onClick={() => openNotesModal(task)}>
@@ -318,9 +319,9 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent>
-                                                        <DropdownMenuItem onClick={() => handleOpenModalForEdit(task)}>
+                                                         <DropdownMenuItem onClick={() => handleOpenModalForEdit(task)}>
                                                             <Pencil className="mr-2 h-4 w-4" />
-                                                            Editar
+                                                            Editar Tarea Completa
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem asChild>
                                                              <a href={task.attachmentURL} target="_blank" rel="noopener noreferrer" className={!task.attachmentURL ? 'pointer-events-none text-muted-foreground' : ''}>
@@ -543,7 +544,9 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+    const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
     const [taskForNotes, setTaskForNotes] = useState<Task | null>(null);
+    const [taskForDescription, setTaskForDescription] = useState<Task | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Use internal state to manage optimistic updates for project and tasks
@@ -598,6 +601,12 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const latestTask = internalTasks.find(t => t.id === task.id) || task;
         setTaskForNotes(latestTask);
         setIsNotesModalOpen(true);
+    };
+    
+    const handleOpenDescriptionModal = (task: Task) => {
+        const latestTask = internalTasks.find(t => t.id === task.id) || task;
+        setTaskForDescription(latestTask);
+        setIsDescriptionModalOpen(true);
     };
 
     const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>, attachment?: File) => {
@@ -934,6 +943,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                                 onDepartmentDelete={handleDepartmentDelete}
                                 onDepartmentNameChange={handleDepartmentNameChange}
                                 openNotesModal={handleOpenNotesModal}
+                                openDescriptionModal={handleOpenDescriptionModal}
                                 onSaveCommonDepartment={saveCommonDepartment}
                              />
                         </CardContent>
@@ -961,6 +971,14 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     onClose={() => setIsNotesModalOpen(false)}
                     task={taskForNotes}
                     users={users}
+                    onTaskUpdate={handleTaskUpdate}
+                />
+             )}
+              {taskForDescription && (
+                 <TaskDescriptionModal
+                    isOpen={isDescriptionModalOpen}
+                    onClose={() => setIsDescriptionModalOpen(false)}
+                    task={taskForDescription}
                     onTaskUpdate={handleTaskUpdate}
                 />
              )}
