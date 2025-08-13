@@ -72,15 +72,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const appConfigData = appConfigSnap.exists() ? appConfigSnap.data() as AppConfig : { logoUrl: null };
       const userRolesData = userRolesSnap.docs.map(doc => doc.data().name);
 
-      if (userRolesData.length === 0) {
-        const defaultRoles = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+      const defaultRoles = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+      const combinedRoles = [...new Set([...defaultRoles, ...userRolesData])];
+      
+      if (userRolesData.length < defaultRoles.length) {
         const batch = writeBatch(db);
-        defaultRoles.forEach(role => {
+        const rolesToAdd = defaultRoles.filter(role => !userRolesData.includes(role));
+        rolesToAdd.forEach(role => {
             const newRoleRef = doc(collection(db, "userRoles"));
             batch.set(newRoleRef, { name: role });
         });
         await batch.commit();
-        setUserRoles(defaultRoles);
+        setUserRoles(combinedRoles);
       } else {
         setUserRoles(userRolesData);
       }
@@ -155,36 +158,41 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
-    const projectDocRef = doc(db, 'projects', projectId);
-    const projectDoc = await getDoc(projectDocRef);
-    if (!projectDoc.exists()) {
-        throw new Error("Project not found");
-    }
+    return new Promise(async (resolve, reject) => {
+        try {
+            const projectDocRef = doc(db, 'projects', projectId);
+            const projectDoc = await getDoc(projectDocRef);
+            if (!projectDoc.exists()) {
+                throw new Error("Project not found");
+            }
 
-    const projectData = projectDoc.data() as Project;
+            const projectData = projectDoc.data() as Project;
+            const filePath = `projects/${projectId}/${partId}/${file.name}`;
+            const url = await uploadFile(file, filePath);
 
-    const filePath = `projects/${projectId}/${partId}/${file.name}`;
-    const url = await uploadFile(file, filePath);
+            const newAttachment: Attachment = {
+                id: crypto.randomUUID(),
+                name: file.name,
+                url: url,
+                uploadedAt: new Date().toISOString(),
+            };
 
-    const newAttachment: Attachment = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        url: url,
-        uploadedAt: new Date().toISOString(),
-    };
+            const updatedParts = projectData.parts?.map(part => {
+                if (part.id === partId) {
+                    const attachments = [...(part.attachments || []), newAttachment];
+                    return { ...part, attachments };
+                }
+                return part;
+            });
 
-    const updatedParts = projectData.parts?.map(part => {
-        if (part.id === partId) {
-            const attachments = [...(part.attachments || []), newAttachment];
-            return { ...part, attachments };
+            await updateDoc(projectDocRef, { parts: updatedParts });
+            await fetchData();
+            resolve();
+        } catch (error) {
+            console.error("Error in addAttachmentToPart:", error);
+            reject(error);
         }
-        return part;
     });
-
-    await updateDoc(projectDocRef, { parts: updatedParts });
-
-    // Refetch data to ensure UI is up to date
-    await fetchData();
 };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
@@ -437,3 +445,5 @@ export const useData = () => {
   }
   return context;
 };
+
+    
