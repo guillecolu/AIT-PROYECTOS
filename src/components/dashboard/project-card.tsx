@@ -97,12 +97,12 @@ export default function ProjectCard({ project, users }: { project: Project, user
     return (
          <Card 
             className={cn(
-                "group relative hover:shadow-lg transition-all duration-300 h-full flex flex-col border-t-4",
+                "group relative hover:shadow-lg transition-all duration-300 h-full flex flex-col border-t-4 hover:scale-105 active:scale-95",
                 getBorderColorClass()
             )}
             style={getBorderStyle()}
         >
-            <Link href={`/dashboard/projects/${id}`} className="flex flex-col flex-grow h-full transition-transform duration-200 ease-in-out group-hover:scale-105 active:scale-95">
+            <Link href={`/dashboard/projects/${id}`} className="flex flex-col flex-grow h-full transition-transform duration-200 ease-in-out ">
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
                         <CardTitle className="font-headline text-base mb-1 pr-8">{name}</CardTitle>
