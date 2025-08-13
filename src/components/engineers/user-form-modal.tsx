@@ -13,7 +13,6 @@ import type { User, UserRole } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useData } from '@/hooks/use-data';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { cn } from '@/lib/utils';
 import { Check, ChevronsUpDown, Trash2, Loader2, PlusCircle } from 'lucide-react';
 
@@ -173,9 +172,12 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
                                         value={role}
                                         key={role}
                                         onSelect={(currentValue) => {
-                                            field.onChange(currentValue.toLowerCase() === field.value ? "" : currentValue)
-                                            setValue(currentValue.toLowerCase() === field.value ? "" : currentValue)
-                                            setOpen(false)
+                                            const newValue = userRoles.find(r => r.toLowerCase() === currentValue);
+                                            if (newValue) {
+                                                field.onChange(newValue);
+                                                setValue(newValue);
+                                            }
+                                            setOpen(false);
                                         }}
                                         className="flex justify-between"
                                     >

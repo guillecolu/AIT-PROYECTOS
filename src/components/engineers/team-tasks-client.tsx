@@ -183,7 +183,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
             filtered.sort((a, b) => {
                 const orderA = priorityOrder[a.priority];
                 const orderB = priorityOrder[b.priority];
-                return sortPriority === 'asc' ? orderA - orderB : orderB - orderA;
+                return sortPriority === 'asc' ? orderA - orderB : orderB - a;
             });
         }
         return filtered;
@@ -324,7 +324,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                     <CardContent className="p-2">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
-                                 <Accordion type="multiple" className="w-full" defaultValue={userRoles}>
+                                 <Accordion type="multiple" className="w-full">
                                     {userRoles.map(category => (
                                         groupedUsers[category] && (
                                             <AccordionItem value={category} key={category} className="border-none">
