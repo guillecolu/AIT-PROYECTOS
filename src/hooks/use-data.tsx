@@ -2,9 +2,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask, AppConfig } from '@/lib/types';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as mime from 'mime-types';
 
@@ -12,6 +12,7 @@ interface DataContextProps {
   projects: Project[];
   tasks: Task[];
   users: User[];
+  userRoles: UserRole[];
   appConfig: AppConfig;
   commonDepartments: string[];
   commonTasks: CommonTask[];
@@ -25,6 +26,8 @@ interface DataContextProps {
   deleteTask: (taskId: string) => Promise<void>;
   saveUser: (user: Omit<User, 'id'> | User) => Promise<User>;
   deleteUser: (userId: string) => Promise<void>;
+  saveUserRole: (role: UserRole) => Promise<void>;
+  deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
@@ -40,6 +43,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [appConfig, setAppConfig] = useState<AppConfig>({ logoUrl: null });
   const [commonDepartments, setCommonDepartments] = useState<string[]>([]);
   const [commonTasks, setCommonTasks] = useState<CommonTask[]>([]);
@@ -48,13 +52,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap, appConfigSnap] = await Promise.all([
+      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap, appConfigSnap, userRolesSnap] = await Promise.all([
         getDocs(collection(db, "projects")),
         getDocs(collection(db, "tasks")),
         getDocs(collection(db, "users")),
         getDocs(collection(db, "commonDepartments")),
         getDocs(collection(db, "commonTasks")),
         getDoc(doc(db, "appConfig", "main")),
+        getDocs(collection(db, "userRoles")),
       ]);
 
       let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).sort((a,b) => (a.order || 0) - (b.order || 0));
@@ -63,6 +68,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
       const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
       const appConfigData = appConfigSnap.exists() ? appConfigSnap.data() as AppConfig : { logoUrl: null };
+      const userRolesData = userRolesSnap.docs.map(doc => doc.data().name);
+
+      if (userRolesData.length === 0) {
+        const defaultRoles = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+        const batch = writeBatch(db);
+        defaultRoles.forEach(role => {
+            const newRoleRef = doc(collection(db, "userRoles"));
+            batch.set(newRoleRef, { name: role });
+        });
+        await batch.commit();
+        setUserRoles(defaultRoles);
+      } else {
+        setUserRoles(userRolesData);
+      }
+
 
       setProjects(projectsData);
       setTasks(tasksData);
@@ -309,11 +329,26 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     setTasks(prev => prev.map(t => t.assignedToId === userId ? { ...t, assignedToId: '' } : t));
   };
+  
+  const saveUserRole = async (role: UserRole) => {
+    if (userRoles.includes(role)) return;
+    await addDoc(collection(db, "userRoles"), { name: role });
+    setUserRoles(prev => [...prev, role]);
+  };
+
+  const deleteUserRole = async (role: UserRole) => {
+      const q = (await getDocs(collection(db, "userRoles"))).docs.find(doc => doc.data().name === role);
+      if (q) {
+          await deleteDoc(q.ref);
+          setUserRoles(prev => prev.filter(r => r !== role));
+      }
+  };
 
   const value: DataContextProps = {
     projects,
     tasks,
     users,
+    userRoles,
     appConfig,
     commonDepartments,
     commonTasks,
@@ -327,6 +362,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     deleteTask,
     saveUser,
     deleteUser,
+    saveUserRole,
+    deleteUserRole,
     addPartToProject,
     saveCommonDepartment,
     saveCommonTask,
@@ -346,5 +383,3 @@ export const useData = () => {
   }
   return context;
 };
-
-    

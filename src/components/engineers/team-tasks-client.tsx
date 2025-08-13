@@ -53,9 +53,7 @@ const priorityOrder: Record<TaskPriority, number> = {
     'Baja': 1,
 };
 
-const userCategories: UserRole[] = ['Admin', 'Manager', 'Dirección de Proyecto', 'Dirección de Área', 'Comercial', 'Oficina Técnica', 'Taller', 'Eléctrico'];
-
-const categoryIcons: Record<UserRole, React.ReactNode> = {
+const categoryIcons: Record<string, React.ReactNode> = {
     'Admin': <UserCheck className="h-5 w-5" />,
     'Manager': <UserCheck className="h-5 w-5" />,
     'Oficina Técnica': <Cog className="h-5 w-5" />,
@@ -153,7 +151,7 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
 
 
 export default function TeamTasksClient(props: TeamTasksClientProps) {
-    const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading } = useData();
+    const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading, userRoles } = useData();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -326,13 +324,13 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                     <CardContent className="p-2">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
-                                 <Accordion type="multiple" className="w-full">
-                                    {userCategories.map(category => (
+                                 <Accordion type="multiple" className="w-full" defaultValue={userRoles}>
+                                    {userRoles.map(category => (
                                         groupedUsers[category] && (
                                             <AccordionItem value={category} key={category} className="border-none">
                                                 <AccordionTrigger className="py-2 px-2 hover:bg-muted/50 rounded-md">
                                                      <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
-                                                        {categoryIcons[category]}
+                                                        {categoryIcons[category] || <Briefcase className="h-5 w-5" />}
                                                         {category}
                                                         <Badge variant="secondary" className="ml-2">{groupedUsers[category].length}</Badge>
                                                     </h3>
@@ -491,7 +489,3 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         </div>
     );
 }
-
-    
-
-    
