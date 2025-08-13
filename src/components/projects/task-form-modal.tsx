@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -134,21 +133,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         finalTaskData = { ...taskData, deadline: data.deadline.toISOString(), component } as Omit<Task, 'id'> & { component: TaskComponent };
     }
 
-    // Add description as a comment if it exists
-    if (data.description) {
-        const currentUser = users.find(u => u.role === 'Admin') || users[0];
-        const newComment: TaskComment = {
-            id: crypto.randomUUID(),
-            authorId: currentUser.id,
-            date: new Date().toISOString(),
-            content: data.description,
-            isClosed: false,
-        };
-        
-        const existingComments = ('comments' in finalTaskData && finalTaskData.comments) ? finalTaskData.comments : [];
-        finalTaskData.comments = [newComment, ...existingComments];
-    }
-    
     onSave(finalTaskData, attachment);
     onClose();
   };
@@ -502,3 +486,5 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     </Dialog>
   );
 }
+
+    
