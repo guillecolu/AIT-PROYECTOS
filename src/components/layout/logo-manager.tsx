@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -46,7 +47,7 @@ export default function LogoManager() {
 
     setIsLoading(true);
     try {
-      const logoUrl = await uploadFile(selectedFile, `app/logo/${selectedFile.name}`);
+      const logoUrl = await uploadFile(selectedFile, `uploads/app/logo/${selectedFile.name}`);
       await saveAppConfig({ logoUrl });
       toast({
         title: '¡Logo guardado!',

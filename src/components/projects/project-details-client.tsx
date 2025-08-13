@@ -825,18 +825,20 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
     
     const handleFileUploaded = async (partId: string, file: File) => {
-        const updatedProject = await addAttachmentToPart(internalProject.id, partId, file);
+        await addAttachmentToPart(internalProject.id, partId, file);
+        toast({ title: 'Archivo subido', description: `"${file.name}" se ha añadido a la parte.`});
+        const updatedProject = projects.find(p => p.id === internalProject.id);
         if (updatedProject) {
             setInternalProject(updatedProject);
-            toast({ title: 'Archivo subido', description: `"${file.name}" se ha añadido a la parte.`});
         }
     };
 
     const handleFileDeleted = async (partId: string, attachmentId: string) => {
-        const updatedProject = await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
+        await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
+        toast({ title: 'Archivo eliminado'});
+         const updatedProject = projects.find(p => p.id === internalProject.id);
         if (updatedProject) {
             setInternalProject(updatedProject);
-            toast({ title: 'Archivo eliminado'});
         }
     };
 

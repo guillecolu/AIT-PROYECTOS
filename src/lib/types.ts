@@ -33,7 +33,11 @@ export interface Attachment {
   id: string;
   name: string;
   url: string;
+  path: string; // path in Storage
+  size: number; // in bytes
+  type: string; // MIME type
   uploadedAt: string; // ISO date string
+  uploadedBy: string; // user id
 }
 
 

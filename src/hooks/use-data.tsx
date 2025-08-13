@@ -31,8 +31,8 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Project | null>;
-  deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<Project | null>;
+  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<void>;
+  deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
   uploadFile: (file: File, path: string) => Promise<string>;
@@ -211,54 +211,86 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Project | null> => {
-    const projectDocRef = doc(db, 'projects', projectId);
-    
-    const filePath = `uploads/projects/${projectId}/${partId}/${file.name}`;
-    const url = await uploadFile(file, filePath);
-
-    const newAttachment: Attachment = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        url: url,
-        uploadedAt: new Date().toISOString(),
-    };
-
-    const projectDoc = await getDoc(projectDocRef);
-    if (!projectDoc.exists()) throw new Error("Project not found");
-
-    const projectData = projectDoc.data() as Project;
-    const updatedParts = projectData.parts?.map(part => {
-        if (part.id === partId) {
-            const attachments = [...(part.attachments || []), newAttachment];
-            return { ...part, attachments };
+  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const currentUser = users.find(u => u.role === "Admin") || users[0];
+        if (!currentUser) {
+            throw new Error("User not found or not authenticated.");
         }
-        return part;
-    });
-    
-    await updateDoc(projectDocRef, { parts: updatedParts });
 
-    const updatedProjectData = { ...projectData, parts: updatedParts };
-    setProjects(prevProjects => prevProjects.map(p => p.id === projectId ? updatedProjectData : p));
-    
-    return updatedProjectData;
-  };
-  
-    const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
-        const project = projects.find(p => p.id === projectId);
-        if (!project) return null;
+        const cleanName = file.name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
+        const filePath = `uploads/projects/${projectId}/${partId}/${Date.now()}_${cleanName}`;
+        
+        const url = await uploadFile(file, filePath);
 
-        const updatedParts = project.parts?.map(part => {
+        const newAttachment: Attachment = {
+            id: crypto.randomUUID(),
+            name: file.name,
+            url: url,
+            path: filePath,
+            size: file.size,
+            type: file.type,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: currentUser.id,
+        };
+
+        const projectDocRef = doc(db, 'projects', projectId);
+        const projectDoc = await getDoc(projectDocRef);
+        if (!projectDoc.exists()) throw new Error("Project not found");
+
+        const projectData = projectDoc.data() as Project;
+        const updatedParts = projectData.parts?.map(part => {
             if (part.id === partId) {
-                const attachments = part.attachments?.filter(att => att.id !== attachmentId);
+                const attachments = [...(part.attachments || []), newAttachment];
                 return { ...part, attachments };
             }
             return part;
         });
+        
+        await updateDoc(projectDocRef, { parts: updatedParts });
+
+        // Optimistic UI update
+        setProjects(prevProjects => prevProjects.map(p => {
+          if (p.id === projectId) {
+            return { ...p, parts: updatedParts || p.parts };
+          }
+          return p;
+        }));
+        
+        resolve();
+      } catch (error) {
+        console.error("Error in addAttachmentToPart:", error);
+        reject(error);
+      }
+    });
+  };
+  
+    const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<void> => {
+       const project = projects.find(p => p.id === projectId);
+        if (!project) return;
+
+        const part = project.parts?.find(p => p.id === partId);
+        const attachment = part?.attachments?.find(a => a.id === attachmentId);
+
+        if (!attachment) return;
+
+        // Note: Deleting from Firebase Storage is not implemented here to avoid accidental data loss.
+        // const fileRef = ref(storage, attachment.path);
+        // await deleteObject(fileRef);
+
+        const updatedParts = project.parts?.map(p => {
+            if (p.id === partId) {
+                const attachments = p.attachments?.filter(att => att.id !== attachmentId);
+                return { ...part, attachments };
+            }
+            return p;
+        });
 
         const updatedProject = { ...project, parts: updatedParts };
         await saveProject(updatedProject);
-        return updatedProject;
+        // Optimistic update
+        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
     };
 
   const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
@@ -339,7 +371,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
     
     if (attachment) {
-        const filePath = `uploads/tasks/${updatedTask.id}/${attachment.name}`;
+        const filePath = `uploads/tasks/${updatedTask.projectId}/${updatedTask.id}/${attachment.name}`;
         const downloadURL = await uploadFile(attachment, filePath);
         updatedTask.attachmentURL = downloadURL;
         updatedTask.attachmentName = attachment.name;
