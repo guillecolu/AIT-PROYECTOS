@@ -13,7 +13,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TaskFormModal from '@/components/projects/task-form-modal';
-import MeetingModal from '../meeting-modal';
 import UserFormModal from './user-form-modal';
 import { useData } from '@/hooks/use-data';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -154,7 +153,6 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading, userRoles } = useData();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-    const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -430,11 +428,6 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                                 )}
                             </TableBody>
                         </Table>
-                         <div className="mt-4 text-right">
-                             <Button onClick={() => setIsMeetingModalOpen(true)} variant="link" className="text-sm font-medium">
-                                 Ver en línea de tiempo
-                             </Button>
-                         </div>
                     </CardContent>
                 </Card>
                 ) : (
@@ -480,11 +473,6 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                 onClose={() => setIsUserModalOpen(false)}
                 onSave={handleSaveUser}
                 user={editingUser}
-            />
-            <MeetingModal
-                isOpen={isMeetingModalOpen}
-                onOpenChange={setIsMeetingModalOpen}
-                initialFilteredProjects={selectedUserProjects}
             />
         </div>
     );
