@@ -187,15 +187,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             }
             return part;
         });
+        
+        const updatedProjectData = { ...projectData, parts: updatedParts };
 
         await updateDoc(projectDocRef, { parts: updatedParts });
-        await fetchData(); // Refresh data to get the latest state
+
+        setProjects(prevProjects => prevProjects.map(p => p.id === projectId ? updatedProjectData : p));
+
     } catch (error) {
         console.error("Error in addAttachmentToPart:", error);
-        // Rethrow the error to be caught by the calling function
         throw error;
     }
-};
+  };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
         const project = projects.find(p => p.id === projectId);
@@ -447,5 +450,8 @@ export const useData = () => {
   }
   return context;
 };
+
+    
+
 
     
