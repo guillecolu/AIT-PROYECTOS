@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as mime from 'mime-types';
 
@@ -29,7 +29,7 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Project | null>;
+  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<void>;
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<Project | null>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
@@ -154,32 +154,38 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Project | null> => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return null;
+  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
+    const projectDocRef = doc(db, 'projects', projectId);
+    const projectDoc = await getDoc(projectDocRef);
+    if (!projectDoc.exists()) {
+        throw new Error("Project not found");
+    }
+
+    const projectData = projectDoc.data() as Project;
 
     const filePath = `projects/${projectId}/${partId}/${file.name}`;
     const url = await uploadFile(file, filePath);
 
     const newAttachment: Attachment = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      url: url,
-      uploadedAt: new Date().toISOString(),
+        id: crypto.randomUUID(),
+        name: file.name,
+        url: url,
+        uploadedAt: new Date().toISOString(),
     };
 
-    const updatedParts = project.parts?.map(part => {
-      if (part.id === partId) {
-        const attachments = [...(part.attachments || []), newAttachment];
-        return { ...part, attachments };
-      }
-      return part;
+    const updatedParts = projectData.parts?.map(part => {
+        if (part.id === partId) {
+            const attachments = [...(part.attachments || []), newAttachment];
+            return { ...part, attachments };
+        }
+        return part;
     });
 
-    const updatedProject = { ...project, parts: updatedParts };
-    await saveProject(updatedProject);
-    return updatedProject;
-  };
+    await updateDoc(projectDocRef, { parts: updatedParts });
+
+    // Refetch data to ensure UI is up to date
+    await fetchData();
+};
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
         const project = projects.find(p => p.id === projectId);
