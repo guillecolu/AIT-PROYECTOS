@@ -145,3 +145,7 @@ export interface CommonTask {
     description: string;
     estimatedTime: number;
 }
+
+export interface DailySummary {
+    summary: string;
+}

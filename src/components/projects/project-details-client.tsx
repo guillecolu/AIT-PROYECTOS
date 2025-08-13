@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2 } from 'lucide-react';
+import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit } from 'lucide-react';
 import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -49,6 +49,7 @@ import ProjectEditModal from './project-edit-modal';
 import { generatePendingTasksPdf } from '@/lib/pdf-generator';
 import ProjectFiles from './project-files';
 import ProjectAlerts from './project-alerts';
+import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -544,6 +545,9 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const { toast } = useToast();
     const router = useRouter();
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [summaryContent, setSummaryContent] = useState('');
+    const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
@@ -823,6 +827,38 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setIsGeneratingPdf(false);
         }
     };
+
+    const handleGenerateDailySummary = async () => {
+        setIsGeneratingSummary(true);
+        try {
+            const pendingTasks = internalTasks.filter(t => t.status !== 'finalizada');
+            const tasksForSummary = pendingTasks.map(t => ({
+                title: t.title,
+                status: t.status,
+                deadline: t.deadline,
+                assignedToName: users.find(u => u.id === t.assignedToId)?.name || 'Sin asignar',
+                priority: t.priority
+            }));
+
+            const result = await generateDailySummary({
+                projectName: internalProject.name,
+                tasks: tasksForSummary,
+            });
+
+            setSummaryContent(result.summary);
+            setIsSummaryDialogOpen(true);
+
+        } catch (error) {
+            console.error("Error generating daily summary:", error);
+            toast({
+                variant: "destructive",
+                title: "Error al generar Resumen",
+                description: "No se pudo crear el resumen. Inténtalo de nuevo.",
+            });
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    };
     
     const handleFileUploaded = async (partId: string, file: File) => {
         await addAttachmentToPart(internalProject.id, partId, file);
@@ -852,6 +888,10 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
+                             <Button onClick={handleGenerateDailySummary} disabled={isGeneratingSummary}>
+                                {isGeneratingSummary ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
+                                Resumen Diario IA
+                            </Button>
                              <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
                                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                                 PDF Tareas Pendientes
@@ -1002,6 +1042,22 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 onSave={handleProjectFieldChange}
                 users={users}
             />
+            <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Resumen Diario Generado por IA</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Estas son las recomendaciones y prioridades para el proyecto <strong>{internalProject.name}</strong> para hoy.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="max-h-80 overflow-y-auto p-4 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
+                        {summaryContent}
+                    </div>
+                    <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => setIsSummaryDialogOpen(false)}>Entendido</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
