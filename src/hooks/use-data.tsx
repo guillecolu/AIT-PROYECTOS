@@ -3,11 +3,12 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment } from '@/lib/types';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import * as mime from 'mime-types';
+import { startOfDay, addDays, isBefore, isSameDay } from 'date-fns';
 
 interface DataContextProps {
   projects: Project[];
@@ -30,7 +31,7 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<void>;
+  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Project | null>;
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<Project | null>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
@@ -88,6 +89,39 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setUserRoles(userRolesData);
       }
+      
+      // Simulate backend alert generation for each project
+      projectsData = projectsData.map(project => {
+          const projectTasks = tasksData.filter(task => task.projectId === project.id);
+          const hoy = startOfDay(new Date());
+          const proximasLimite = addDays(hoy, 3);
+
+          const isDone = (task: Task) => task.status === 'finalizada';
+
+          const atrasadas = projectTasks.filter(t => t.deadline && isBefore(new Date(t.deadline), hoy) && !isDone(t));
+          const proximas = projectTasks.filter(t => t.deadline && new Date(t.deadline) >= hoy && new Date(t.deadline) <= proximasLimite && !isDone(t));
+          const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
+          const bloqueadas = projectTasks.filter(t => t.blocked === true);
+
+          const alerts: ProjectAlerts = {
+              id: hoy.toISOString().split('T')[0].replace(/-/g, ''),
+              projectId: project.id,
+              createdAt: hoy.toISOString(),
+              counters: {
+                  atrasadas: atrasadas.length,
+                  proximas: proximas.length,
+                  sinAsignar: sinAsignar.length,
+                  bloqueadas: bloqueadas.length,
+              },
+              items: [
+                  ...atrasadas.map(t => ({type: "ATRASADA", taskId: t.id} as AlertItem)),
+                  ...proximas.map(t => ({type: "PROXIMA", taskId: t.id} as AlertItem)),
+                  ...sinAsignar.map(t => ({type: "SIN_ASIGNAR", taskId: t.id} as AlertItem)),
+                  ...bloqueadas.map(t => ({type: "BLOQUEADA", taskId: t.id} as AlertItem)),
+              ]
+          };
+          return { ...project, alerts };
+      });
 
 
       setProjects(projectsData);
@@ -119,12 +153,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const uploadFile = async (file: File, path: string): Promise<string> => {
-    const storageRef = ref(storage, path);
-    const contentType = mime.lookup(file.name) || 'application/octet-stream';
-    const metadata = { contentType };
-    await uploadBytes(storageRef, file, metadata);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    return new Promise((resolve, reject) => {
+        const storageRef = ref(storage, path);
+        const contentType = mime.lookup(file.name) || 'application/octet-stream';
+        const metadata = { contentType };
+        
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // Can be used to display progress
+            },
+            (error) => {
+                console.error("Upload error:", error.code, error.message);
+                reject(error);
+            },
+            async () => {
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(downloadURL);
+                } catch (error) {
+                    reject(error);
+                }
+            }
+        );
+    });
   }
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
@@ -158,46 +211,37 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
-    try {
-        const projectDocRef = doc(db, 'projects', projectId);
-        
-        // Upload file first
-        const filePath = `projects/${projectId}/${partId}/${file.name}`;
-        const url = await uploadFile(file, filePath);
+  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Project | null> => {
+    const projectDocRef = doc(db, 'projects', projectId);
+    
+    const filePath = `uploads/projects/${projectId}/${partId}/${file.name}`;
+    const url = await uploadFile(file, filePath);
 
-        // Then, update the document
-        const newAttachment: Attachment = {
-            id: crypto.randomUUID(),
-            name: file.name,
-            url: url,
-            uploadedAt: new Date().toISOString(),
-        };
+    const newAttachment: Attachment = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url: url,
+        uploadedAt: new Date().toISOString(),
+    };
 
-        const projectDoc = await getDoc(projectDocRef);
-        if (!projectDoc.exists()) {
-            throw new Error("Project not found");
+    const projectDoc = await getDoc(projectDocRef);
+    if (!projectDoc.exists()) throw new Error("Project not found");
+
+    const projectData = projectDoc.data() as Project;
+    const updatedParts = projectData.parts?.map(part => {
+        if (part.id === partId) {
+            const attachments = [...(part.attachments || []), newAttachment];
+            return { ...part, attachments };
         }
+        return part;
+    });
+    
+    await updateDoc(projectDocRef, { parts: updatedParts });
 
-        const projectData = projectDoc.data() as Project;
-        const updatedParts = projectData.parts?.map(part => {
-            if (part.id === partId) {
-                const attachments = [...(part.attachments || []), newAttachment];
-                return { ...part, attachments };
-            }
-            return part;
-        });
-        
-        const updatedProjectData = { ...projectData, parts: updatedParts };
-
-        await updateDoc(projectDocRef, { parts: updatedParts });
-
-        setProjects(prevProjects => prevProjects.map(p => p.id === projectId ? updatedProjectData : p));
-
-    } catch (error) {
-        console.error("Error in addAttachmentToPart:", error);
-        throw error;
-    }
+    const updatedProjectData = { ...projectData, parts: updatedParts };
+    setProjects(prevProjects => prevProjects.map(p => p.id === projectId ? updatedProjectData : p));
+    
+    return updatedProjectData;
   };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
@@ -295,7 +339,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
     
     if (attachment) {
-        const filePath = `tasks/${updatedTask.id}/${attachment.name}`;
+        const filePath = `uploads/tasks/${updatedTask.id}/${attachment.name}`;
         const downloadURL = await uploadFile(attachment, filePath);
         updatedTask.attachmentURL = downloadURL;
         updatedTask.attachmentName = attachment.name;

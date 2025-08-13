@@ -53,6 +53,27 @@ export interface ProjectNote {
   content: string;
 }
 
+export type AlertType = 'ATRASADA' | 'PROXIMA' | 'SIN_ASIGNAR' | 'BLOQUEADA';
+
+export interface AlertItem {
+    type: AlertType;
+    taskId: string;
+}
+
+export interface ProjectAlerts {
+    id: string; // YYYYMMDD
+    projectId: string;
+    createdAt: string; // ISO String
+    counters: {
+        atrasadas: number;
+        proximas: number;
+        sinAsignar: number;
+        bloqueadas: number;
+    };
+    items: AlertItem[];
+}
+
+
 export interface Project {
   id: string;
   numero?: string;
@@ -70,6 +91,7 @@ export interface Project {
   isUrgent?: boolean;
   color?: string;
   order?: number;
+  alerts?: ProjectAlerts;
 }
 
 export type TaskStatus = 'pendiente' | 'para-soldar' | 'montada' | 'finalizada' | 'en-progreso';
@@ -110,6 +132,7 @@ export interface Task {
   deadline: string; // ISO date string
   progress: number; // 0-100
   isUrgent?: boolean;
+  blocked?: boolean;
 }
 
 export interface CommonTask {

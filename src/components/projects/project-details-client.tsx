@@ -48,6 +48,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import ProjectEditModal from './project-edit-modal';
 import { generatePendingTasksPdf } from '@/lib/pdf-generator';
 import ProjectFiles from './project-files';
+import ProjectAlerts from './project-alerts';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -894,6 +895,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <ProjectAlerts alerts={internalProject.alerts} />
                      <div>
                         <div className="flex justify-between text-sm text-muted-foreground mb-1">
                             <span>Progreso Total</span>
