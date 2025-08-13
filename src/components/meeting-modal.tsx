@@ -272,7 +272,7 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
         }
     };
 
-    const dialogTrigger = onOpenChange ? null : (
+    const dialogTrigger = (
         <DialogTrigger asChild>
             <Button size="lg">
                 <Calendar className="mr-2" />
@@ -298,12 +298,48 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
                     </div>
                 ) : (
                 <Tabs defaultValue="timeline" className="flex-grow flex flex-col min-h-0 pt-4">
-                    <TabsList className="self-start grid grid-cols-2 w-auto">
+                    <TabsList className="self-start grid grid-cols-3 w-auto">
                         <TabsTrigger value="timeline"><GanttChartSquare className="mr-2" />Cronograma Global</TabsTrigger>
+                        <TabsTrigger value="engineers"><UserIcon className="mr-2" />Análisis por Ingeniero</TabsTrigger>
                         <TabsTrigger value="projects"><FolderKanban className="mr-2" />Análisis por Proyecto</TabsTrigger>
                     </TabsList>
                     <TabsContent value="timeline" className="flex-grow mt-4 min-h-0">
                         <ProjectsTimeline projects={timelineProjects} users={users} tasks={tasks} />
+                    </TabsContent>
+                    <TabsContent value="engineers" className="flex-grow mt-4 min-h-0">
+                         <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full gap-6">
+                            <div className="col-span-1 flex flex-col border-r pr-4">
+                                <h4 className="font-semibold mb-2 px-1 text-lg">Equipo</h4>
+                                <ScrollArea className="h-full">
+                                    <div className="p-1 space-y-2">
+                                        {users.map(user => (
+                                            <Button
+                                                key={user.id}
+                                                variant={selectedEngineer?.id === user.id ? "secondary" : "ghost"}
+                                                className="w-full justify-start h-auto text-left py-2"
+                                                onClick={() => handleGenerateEngineerReport(user)}
+                                                disabled={isEngineerLoading && selectedEngineer?.id === user.id}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    {isEngineerLoading && selectedEngineer?.id === user.id && <Loader2 className="h-4 w-4 animate-spin"/>}
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person face" />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-semibold">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{user.role}</p>
+                                                    </div>
+                                                </div>
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+                            <div className="col-span-1 h-full bg-muted/30 rounded-lg">
+                                <EngineerReportViewer report={engineerReport} isLoading={isEngineerLoading} selectedEngineer={selectedEngineer} />
+                            </div>
+                        </div>
                     </TabsContent>
                      <TabsContent value="projects" className="flex-grow mt-4 min-h-0">
                         <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full gap-6">
