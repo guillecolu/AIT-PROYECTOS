@@ -610,7 +610,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const savedTask = await saveTask(updatedTaskData, attachment);
         
         // After DB save, get the latest project state
-        const updatedProject = await saveProject(project); // This might be redundant if saveTask returns it
+        const updatedProject = await saveProject(internalProject); // This might be redundant if saveTask returns it
         setInternalProject(updatedProject);
     };
 
@@ -644,7 +644,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
          // Optimistic UI update
         setInternalTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
         await deleteTask(taskId);
-        const updatedProject = await saveProject(project); // Re-fetch or re-calculate
+        const updatedProject = await saveProject(internalProject); // Re-fetch or re-calculate
         setInternalProject(updatedProject);
     };
 
