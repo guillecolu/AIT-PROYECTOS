@@ -1,37 +1,18 @@
-
+'use server';
 /**
  * @fileOverview A flow to generate a list of tasks from a natural language prompt.
  * It identifies tasks, the person assigned, and the corresponding area.
  *
  * - generateTasksFromPrompt - Generates a structured list of tasks from a text prompt.
- * - GenerateTasksInput - The input type for the generateTasksFromPrompt function.
- * - GenerateTasksOutput - The return type for the generateTasksFromPrompt function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const TaskSchema = z.object({
-  title: z.string().describe('El nombre o título de la tarea a realizar.'),
-  assignedToName: z.string().optional().describe('El nombre de la persona a la que se le asignó la tarea.'),
-});
-
-const GenerateTasksOutputSchema = z.array(
-    z.object({
-        partName: z.string().describe("El nombre del Área o sección al que pertenecen las tareas (ej: 'Diseño', 'Montaje', 'Soldadura')."),
-        tasks: z.array(TaskSchema).describe('La lista de tareas para esa Área.'),
-    })
-);
-
-export type GenerateTasksOutput = z.infer<typeof GenerateTasksOutputSchema>;
-
-const GenerateTasksInputSchema = z.object({
-  prompt: z.string().describe('La instrucción en lenguaje natural para generar las tareas.'),
-  users: z.array(z.object({id: z.string(), name: z.string()})).describe('La lista de usuarios disponibles para asignar tareas.'),
-  projectId: z.string(),
-  projectName: z.string(),
-});
-export type GenerateTasksInput = z.infer<typeof GenerateTasksInputSchema>;
+import {
+  GenerateTasksInputSchema,
+  GenerateTasksOutputSchema,
+  type GenerateTasksInput,
+  type GenerateTasksOutput,
+} from './generate-tasks-from-prompt.types';
 
 
 export async function generateTasksFromPrompt(input: GenerateTasksInput): Promise<GenerateTasksOutput> {

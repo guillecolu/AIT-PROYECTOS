@@ -14,7 +14,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { generateProjectReport, GenerateProjectReportOutput } from '@/ai/flows/generate-project-report';
+import { generateProjectReport } from '@/ai/flows/generate-project-report';
+import type { GenerateProjectReportOutput } from '@/ai/flows/generate-project-report.types';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Project, Task } from '@/lib/types';
 import { useData } from '@/hooks/use-data';

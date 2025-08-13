@@ -798,7 +798,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
 
         toast({
             title: 'Área Actualizada',
-            description: `El nombre del área se ha actualizado a "${newStageName}".`,
+            description: `El nombre del área se ha actualizado a "${newName}".`,
         });
     };
     
