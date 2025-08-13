@@ -36,8 +36,7 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
   const { userRoles, saveUserRole, deleteUserRole } = useData();
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false)
-  const [value, setValue] = useState("")
-
+  
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -71,14 +70,12 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
                 email: user.email,
                 role: user.role,
             });
-            setValue(user.role)
         } else {
             form.reset({
                 name: '',
                 email: '',
                 role: 'Oficina Técnica',
             });
-            setValue('Oficina Técnica');
         }
     }
   }, [isOpen, user, form]);
@@ -126,78 +123,82 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Categoría / Rol</FormLabel>
-                  <Popover open={open} onOpenChange={setOpen}>
+                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
                           variant="outline"
                           role="combobox"
-                          aria-expanded={open}
-                          className="w-full justify-between"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
                         >
-                          {field.value
-                            ? userRoles.find(
-                                (role) => role.toLowerCase() === field.value.toLowerCase()
-                              ) || field.value
-                            : "Seleccionar categoría..."}
+                          {field.value || "Seleccionar categoría..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[280px] p-0">
-                       <Command>
-                            <CommandInput 
-                                placeholder="Buscar o crear categoría..."
-                                onValueChange={(search) => setValue(search)}
-                                value={value}
-                            />
-                            <CommandList>
-                                <CommandEmpty>
-                                    <Button
-                                        variant="ghost"
-                                        className="w-full"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            field.onChange(value);
+                      <Command>
+                        <CommandInput
+                          placeholder="Buscar o crear categoría..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.currentTarget.value) {
+                                e.preventDefault();
+                                field.onChange(e.currentTarget.value);
+                                setOpen(false);
+                            }
+                          }}
+                        />
+                        <CommandList>
+                            <CommandEmpty>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        const inputValue = (e.currentTarget.closest('.cmdk-root')?.querySelector('input') as HTMLInputElement)?.value;
+                                        if (inputValue) {
+                                            field.onChange(inputValue);
                                             setOpen(false)
-                                        }}
-                                    >
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Crear y seleccionar "{value}"
-                                    </Button>
-                                </CommandEmpty>
-                                <CommandGroup>
-                                {userRoles.map((role) => (
-                                    <CommandItem
-                                        value={role}
-                                        key={role}
-                                        onSelect={(currentValue) => {
-                                            const newValue = userRoles.find(r => r.toLowerCase() === currentValue);
-                                            if (newValue) {
-                                                field.onChange(newValue);
-                                                setValue(newValue);
-                                            }
-                                            setOpen(false);
-                                        }}
-                                        className="flex justify-between"
-                                    >
-                                        <div className="flex items-center">
-                                            <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                field.value === role ? "opacity-100" : "opacity-0"
-                                            )}
-                                            />
-                                            {role}
-                                        </div>
-                                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleDeleteRole(e, role)}>
-                                            <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                         </Button>
-                                    </CommandItem>
-                                ))}
-                                </CommandGroup>
-                           </CommandList>
-                       </Command>
+                                        }
+                                    }}
+                                >
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Crear y seleccionar
+                                </Button>
+                            </CommandEmpty>
+                          <CommandGroup>
+                            {userRoles.map((role) => (
+                              <CommandItem
+                                value={role}
+                                key={role}
+                                onSelect={() => {
+                                  form.setValue("role", role)
+                                  setOpen(false)
+                                }}
+                                 className="flex justify-between"
+                              >
+                                <div className='flex items-center'>
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    role === field.value
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {role}
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleDeleteRole(e, role)}>
+                                    <Trash2 className="h-4 w-4 text-destructive/70"/>
+                                </Button>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
