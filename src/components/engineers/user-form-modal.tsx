@@ -6,15 +6,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { User, UserRole } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useData } from '@/hooks/use-data';
-import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
-import { cn } from '@/lib/utils';
-import { Check, ChevronsUpDown, Trash2, Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle } from 'lucide-react';
 
 
 const userSchema = z.object({
@@ -33,9 +32,10 @@ interface UserFormModalProps {
 }
 
 export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFormModalProps) {
-  const { userRoles, saveUserRole, deleteUserRole } = useData();
+  const { userRoles, saveUserRole } = useData();
   const [isLoading, setIsLoading] = useState(false);
-  const [open, setOpen] = useState(false)
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
@@ -48,18 +48,14 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
 
   const onSubmit = async (data: UserFormData) => {
     setIsLoading(true);
-    // If the role is new, save it first
-    if (!userRoles.find(r => r.toLowerCase() === data.role.toLowerCase())) {
-        await saveUserRole(data.role);
+    try {
+      await onSave(user ? { ...user, ...data } : data);
+      onClose();
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (user) {
-        await onSave({ ...user, ...data });
-    } else {
-        await onSave(data);
-    }
-    setIsLoading(false);
-    onClose();
   };
   
   useEffect(() => {
@@ -80,14 +76,17 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
     }
   }, [isOpen, user, form]);
 
-  const handleDeleteRole = (e: React.MouseEvent, role: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-    deleteUserRole(role);
+  const handleAddNewCategory = async () => {
+    if (newCategoryName.trim()) {
+      await saveUserRole(newCategoryName);
+      form.setValue('role', newCategoryName, { shouldValidate: true });
+      setNewCategoryName("");
+      setIsAddCategoryOpen(false);
+    }
   }
 
-
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -121,86 +120,36 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
               control={form.control}
               name="role"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem>
                   <FormLabel>Categoría / Rol</FormLabel>
-                   <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value || "Seleccionar categoría..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[280px] p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder="Buscar o crear categoría..."
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.currentTarget.value) {
-                                e.preventDefault();
-                                field.onChange(e.currentTarget.value);
-                                setOpen(false);
-                            }
-                          }}
-                        />
-                        <CommandList>
-                            <CommandEmpty>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        const inputValue = (e.currentTarget.closest('.cmdk-root')?.querySelector('input') as HTMLInputElement)?.value;
-                                        if (inputValue) {
-                                            field.onChange(inputValue);
-                                            setOpen(false)
-                                        }
-                                    }}
-                                >
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Crear y seleccionar
-                                </Button>
-                            </CommandEmpty>
-                          <CommandGroup>
-                            {userRoles.map((role) => (
-                              <CommandItem
-                                value={role}
-                                key={role}
-                                onSelect={() => {
-                                  form.setValue("role", role)
-                                  setOpen(false)
-                                }}
-                                 className="flex justify-between"
-                              >
-                                <div className='flex items-center'>
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    role === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                {role}
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleDeleteRole(e, role)}>
-                                    <Trash2 className="h-4 w-4 text-destructive/70"/>
-                                </Button>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select 
+                    onValueChange={(value) => {
+                      if (value === '__add_new__') {
+                        setIsAddCategoryOpen(true);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }} 
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {userRoles.map((role) => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                      <SelectSeparator />
+                      <SelectItem value="__add_new__">
+                        <span className="flex items-center gap-2">
+                          <PlusCircle className="h-4 w-4" />
+                          Crear nueva categoría...
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -216,5 +165,29 @@ export default function UserFormModal({ isOpen, onClose, onSave, user }: UserFor
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={isAddCategoryOpen} onOpenChange={setIsAddCategoryOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Añadir Nueva Categoría</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Escribe el nombre para la nueva categoría o rol de usuario.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-2">
+                 <Input 
+                    placeholder="Ej: Dirección de Área"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    autoFocus
+                />
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleAddNewCategory}>Añadir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
