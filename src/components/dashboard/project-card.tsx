@@ -102,49 +102,7 @@ export default function ProjectCard({ project, users }: { project: Project, user
             )}
             style={getBorderStyle()}
         >
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-7 w-7'/>
-                {status !== 'cerrado' && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={toggleUrgent}
-                    >
-                        <AlertTriangle className={cn("h-4 w-4 text-muted-foreground", isUrgent && "text-destructive fill-destructive/20")} />
-                    </Button>
-                )}
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Esto eliminará permanentemente el proyecto
-                            <span className="font-bold"> {name} </span>
-                            y todas sus tareas asociadas.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-                            {isDeleting ? "Eliminando..." : "Sí, eliminar proyecto"}
-                        </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-            
-            <Link href={`/dashboard/projects/${id}`} className="flex flex-col flex-grow h-full transition-transform duration-200 ease-in-out hover:scale-105 active:scale-95">
+            <Link href={`/dashboard/projects/${id}`} className="flex flex-col flex-grow h-full transition-transform duration-200 ease-in-out group-hover:scale-105 active:scale-95">
                 <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
                         <CardTitle className="font-headline text-base mb-1 pr-8">{name}</CardTitle>
@@ -177,6 +135,46 @@ export default function ProjectCard({ project, users }: { project: Project, user
                         status !== 'cerrado' && daysRemaining < 0 && "text-destructive font-semibold"
                     )}>
                         {deliveryText}
+                    </div>
+                     <div className="flex items-center gap-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <ProjectColorPicker project={project} onColorChange={handleColorChange} triggerButtonSize='icon' triggerClassName='h-7 w-7'/>
+                        {status !== 'cerrado' && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={toggleUrgent}
+                            >
+                                <AlertTriangle className={cn("h-4 w-4 text-muted-foreground", isUrgent && "text-destructive fill-destructive/20")} />
+                            </Button>
+                        )}
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7"
+                                >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Esto eliminará permanentemente el proyecto
+                                    <span className="font-bold"> {name} </span>
+                                    y todas sus tareas asociadas.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                                    {isDeleting ? "Eliminando..." : "Sí, eliminar proyecto"}
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </CardFooter>
             </Link>
