@@ -1,4 +1,4 @@
-'use server';
+
 /**
  * @fileOverview A flow to generate a list of tasks from a natural language prompt.
  * It identifies tasks, the person assigned, and the corresponding area.

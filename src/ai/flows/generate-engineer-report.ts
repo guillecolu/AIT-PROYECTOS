@@ -1,5 +1,5 @@
 // This file is machine-generated - edit with caution!
-'use server';
+
 /**
  * @fileOverview A flow to generate a summary report for each engineer, detailing their active projects,
  * task statuses, personal progress, and alerts for delayed tasks.
@@ -92,5 +92,3 @@ const generateEngineerReportFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    

@@ -1,5 +1,5 @@
 // This file is machine-generated - edit with caution!
-'use server';
+
 /**
  * @fileOverview A flow to generate a daily summary and task prioritization for a project.
  *

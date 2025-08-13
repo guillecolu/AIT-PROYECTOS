@@ -1,4 +1,3 @@
-'use server';
 
 /**
  * @fileOverview Generates a comprehensive summary report for a given project for a meeting.
