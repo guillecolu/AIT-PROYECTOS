@@ -64,12 +64,6 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
             width: 80 // Increased width for better quality
         });
         doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - qrSize + 10, qrSize, qrSize);
-
-        // Page number
-        doc.setFont('Inter', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor('#6B7280');
-        doc.text(`Página ${pageNum} de ${totalPages}`, M.l, pageHeight - M.b + 8, { align: 'left' });
     };
     
     // Summary Cards
