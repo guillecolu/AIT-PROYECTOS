@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Task, User, TaskStatus, TaskComponent, TaskPriority, Project, Part, CommonTask } from '@/lib/types';
+import type { Task, User, TaskStatus, TaskComponent, TaskPriority, Project, Part, CommonTask, TaskComment } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
@@ -123,20 +123,33 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         console.error("Component is missing");
         return;
     }
-    
+
     const { attachment, ...taskData } = data;
-    
-    const completeTaskData = { 
-        ...taskData, 
-        deadline: data.deadline.toISOString(),
-        component: component,
-    };
-    
+
+    let finalTaskData: Omit<Task, 'id'> | Task;
+
     if (task) {
-        onSave({ ...task, ...completeTaskData }, attachment);
+        finalTaskData = { ...task, ...taskData, deadline: data.deadline.toISOString(), component };
     } else {
-        onSave(completeTaskData, attachment);
+        finalTaskData = { ...taskData, deadline: data.deadline.toISOString(), component } as Omit<Task, 'id'> & { component: TaskComponent };
     }
+
+    // Add description as a comment if it exists
+    if (data.description && (!task || data.description !== task.description)) {
+        const currentUser = users.find(u => u.role === 'Admin') || users[0];
+        const newComment: TaskComment = {
+            id: crypto.randomUUID(),
+            authorId: currentUser.id,
+            date: new Date().toISOString(),
+            content: data.description,
+            isClosed: false,
+        };
+        
+        const existingComments = ('comments' in finalTaskData && finalTaskData.comments) ? finalTaskData.comments : [];
+        finalTaskData.comments = [newComment, ...existingComments];
+    }
+    
+    onSave(finalTaskData, attachment);
     onClose();
   };
   
