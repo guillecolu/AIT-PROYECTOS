@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2 } from 'lucide-react';
-import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask } from '@/lib/types';
+import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -539,7 +539,7 @@ const getContrastingTextColor = (hexcolor?: string): string => {
 }
 
 export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig, addAttachmentToPart, deleteAttachmentFromPart } = useData();
+    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
@@ -825,20 +825,29 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
     
     const handleLinkAdd = async (partId: string, url: string, name: string) => {
-        await addAttachmentToPart(internalProject.id, partId, url, name);
-        const updatedProject = projects.find(p => p.id === internalProject.id);
-        if (updatedProject) {
-            setInternalProject(updatedProject);
+        const newAttachment = await addAttachmentToPart(internalProject.id, partId, url, name);
+        if (newAttachment) {
+            const updatedProject = { ...internalProject };
+            const partIndex = updatedProject.parts.findIndex(p => p.id === partId);
+            if (partIndex !== -1) {
+                if (!updatedProject.parts[partIndex].attachments) {
+                    updatedProject.parts[partIndex].attachments = [];
+                }
+                updatedProject.parts[partIndex].attachments?.push(newAttachment);
+                setInternalProject(updatedProject);
+            }
         }
     };
 
     const handleFileDeleted = async (partId: string, attachmentId: string) => {
         await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
-        toast({ title: 'Archivo eliminado'});
-         const updatedProject = projects.find(p => p.id === internalProject.id);
-        if (updatedProject) {
+        const updatedProject = { ...internalProject };
+        const partIndex = updatedProject.parts.findIndex(p => p.id === partId);
+        if (partIndex !== -1) {
+            updatedProject.parts[partIndex].attachments = updatedProject.parts[partIndex].attachments?.filter(a => a.id !== attachmentId);
             setInternalProject(updatedProject);
         }
+        toast({ title: 'Archivo eliminado'});
     };
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);

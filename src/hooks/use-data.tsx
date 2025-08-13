@@ -6,9 +6,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import * as mime from 'mime-types';
-import { startOfDay, addDays, isBefore, isSameDay } from 'date-fns';
+import { startOfDay, addDays, isBefore } from 'date-fns';
 
 interface DataContextProps {
   projects: Project[];
@@ -31,11 +31,10 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, url: string, name: string) => Promise<void>;
+  addAttachmentToPart: (projectId: string, partId: string, url: string, name: string) => Promise<Attachment | null>;
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
-  uploadFile: (file: File, path: string) => Promise<string>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
@@ -211,13 +210,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-  const addAttachmentToPart = async (projectId: string, partId: string, url: string, name: string): Promise<void> => {
-    return new Promise(async (resolve, reject) => {
-      try {
+    const addAttachmentToPart = async (projectId: string, partId: string, url: string, name: string): Promise<Attachment | null> => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return null;
+
         const currentUser = users.find(u => u.role === "Admin") || users[0];
-        if (!currentUser) {
-            throw new Error("User not found or not authenticated.");
-        }
+        if (!currentUser) throw new Error("User not found.");
 
         const newAttachment: Attachment = {
             id: crypto.randomUUID(),
@@ -230,37 +228,20 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             uploadedBy: currentUser.id,
         };
 
-        const projectDocRef = doc(db, 'projects', projectId);
-        const projectDoc = await getDoc(projectDocRef);
-        if (!projectDoc.exists()) throw new Error("Project not found");
-
-        const projectData = projectDoc.data() as Project;
-        const updatedParts = projectData.parts?.map(part => {
+        const updatedParts = (project.parts || []).map(part => {
             if (part.id === partId) {
-                const attachments = [...(part.attachments || []), newAttachment];
-                return { ...part, attachments };
+                return { ...part, attachments: [...(part.attachments || []), newAttachment] };
             }
             return part;
         });
-        
-        await updateDoc(projectDocRef, { parts: updatedParts });
 
-        // Optimistic UI update
-        setProjects(prevProjects => prevProjects.map(p => {
-          if (p.id === projectId) {
-            const newP = { ...p, parts: updatedParts || p.parts };
-            return newP;
-          }
-          return p;
-        }));
+        const updatedProject = { ...project, parts: updatedParts };
+        await saveProject(updatedProject);
+
+        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
         
-        resolve();
-      } catch (error) {
-        console.error("Error in addAttachmentToPart:", error);
-        reject(error);
-      }
-    });
-  };
+        return newAttachment;
+    };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<void> => {
        const project = projects.find(p => p.id === projectId);
@@ -503,7 +484,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     deleteAttachmentFromPart,
     saveCommonDepartment,
     saveCommonTask,
-    uploadFile,
     saveAppConfig,
     setProjects,
     setUsers,

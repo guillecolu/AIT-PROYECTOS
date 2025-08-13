@@ -89,7 +89,7 @@ export interface Project {
   projectManagerId: string;
   engineerIds: string[];
   progress: number; // 0-100
-  parts?: Part[];
+  parts: Part[];
   notes?: ProjectNote[];
   changeHistory?: { date: string; change: string }[];
   isUrgent?: boolean;
