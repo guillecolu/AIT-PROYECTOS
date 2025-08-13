@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole } from '@/lib/types';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -29,6 +29,8 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
+  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Project | null>;
+  deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<Project | null>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
   uploadFile: (file: File, path: string) => Promise<string>;
@@ -151,6 +153,50 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       
       return newPart;
   };
+
+  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Project | null> => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return null;
+
+    const filePath = `projects/${projectId}/${partId}/${file.name}`;
+    const url = await uploadFile(file, filePath);
+
+    const newAttachment: Attachment = {
+      id: crypto.randomUUID(),
+      name: file.name,
+      url: url,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    const updatedParts = project.parts?.map(part => {
+      if (part.id === partId) {
+        const attachments = [...(part.attachments || []), newAttachment];
+        return { ...part, attachments };
+      }
+      return part;
+    });
+
+    const updatedProject = { ...project, parts: updatedParts };
+    await saveProject(updatedProject);
+    return updatedProject;
+  };
+  
+    const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project) return null;
+
+        const updatedParts = project.parts?.map(part => {
+            if (part.id === partId) {
+                const attachments = part.attachments?.filter(att => att.id !== attachmentId);
+                return { ...part, attachments };
+            }
+            return part;
+        });
+
+        const updatedProject = { ...project, parts: updatedParts };
+        await saveProject(updatedProject);
+        return updatedProject;
+    };
 
   const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
   const getTasksByProjectId = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
@@ -365,6 +411,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     saveUserRole,
     deleteUserRole,
     addPartToProject,
+    addAttachmentToPart,
+    deleteAttachmentFromPart,
     saveCommonDepartment,
     saveCommonTask,
     uploadFile,

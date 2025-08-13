@@ -47,6 +47,7 @@ import ProjectColorPicker from './project-color-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import ProjectEditModal from './project-edit-modal';
 import { generatePendingTasksPdf } from '@/lib/pdf-generator';
+import ProjectFiles from './project-files';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -537,7 +538,7 @@ const getContrastingTextColor = (hexcolor?: string): string => {
 }
 
 export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig } = useData();
+    const { saveProject, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig, addAttachmentToPart, deleteAttachmentFromPart } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
@@ -821,6 +822,22 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setIsGeneratingPdf(false);
         }
     };
+    
+     const handleFileUploaded = async (partId: string, file: File) => {
+        const updatedProject = await addAttachmentToPart(internalProject.id, partId, file);
+        if (updatedProject) {
+            setInternalProject(updatedProject);
+            toast({ title: 'Archivo subido', description: `"${file.name}" se ha añadido a la parte.`});
+        }
+    };
+
+    const handleFileDeleted = async (partId: string, attachmentId: string) => {
+        const updatedProject = await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
+        if (updatedProject) {
+            setInternalProject(updatedProject);
+            toast({ title: 'Archivo eliminado'});
+        }
+    };
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
     const managers = users.filter(u => u.role === 'Oficina Técnica');
@@ -958,11 +975,11 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                      />
                 </TabsContent>
                 <TabsContent value="files">
-                     <Card>
-                        <CardContent className="p-6">
-                            <p className="text-muted-foreground">No hay archivos adjuntos a este proyecto.</p>
-                        </CardContent>
-                    </Card>
+                    <ProjectFiles 
+                        project={internalProject}
+                        onFileUpload={handleFileUploaded}
+                        onFileDelete={handleFileDeleted}
+                    />
                 </TabsContent>
             </Tabs>
              {taskForNotes && (

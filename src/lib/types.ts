@@ -29,11 +29,20 @@ export interface Stage {
     porcentaje: number;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: string; // ISO date string
+}
+
+
 export interface Part {
   id: string;
   name: string;
   stages: Stage[];
   progress?: number;
+  attachments?: Attachment[];
 }
 
 
