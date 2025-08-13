@@ -135,7 +135,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     }
 
     // Add description as a comment if it exists
-    if (data.description && (!task || data.description !== task.description)) {
+    if (data.description) {
         const currentUser = users.find(u => u.role === 'Admin') || users[0];
         const newComment: TaskComment = {
             id: crypto.randomUUID(),
