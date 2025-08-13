@@ -29,7 +29,7 @@ const GenerateProjectReportInputSchema = z.object({
   totalProgress: z.number().describe('The total progress of the project (%).'),
   assignedPeople: z.array(z.string()).describe('The names of the people assigned to the project.'),
   overallStatus: z.string().describe('The overall status of the project (on time / delayed / paused).'),
-  etapas: z.array(StageSchema).describe('The different departments or milestones of the project.'),
+  etapas: z.array(StageSchema).describe('The different areas or milestones of the project.'),
   tasks: z.array(TaskSchema).describe('A list of tasks associated with the project.'),
   deliveryDate: z.string().describe('The final delivery date for the project.'),
   notes: z.string().optional().describe('Additional text notes about the project.'),
@@ -64,7 +64,7 @@ const prompt = ai.definePrompt({
   - Fecha Final de Entrega: {{deliveryDate}}
   - Ingenieros Asignados: {{#each assignedPeople}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-  - Departamentos (Entregables):
+  - Áreas (Entregables):
   {{#each etapas}}
     - {{nombre}}: {{estado}} ({{porcentaje}}% completado)
   {{/each}}
@@ -82,11 +82,11 @@ const prompt = ai.definePrompt({
   Basado en estos datos, proporciona lo siguiente en español:
 
   1.  **executiveSummary**: Escribe un resumen global de 2-3 frases. Comienza con el nombre del proyecto y su estado general. Menciona el progreso clave y la próxima fecha importante.
-  2.  **keyStats**: Proporciona estadísticas clave. Cuenta el número de tareas completadas frente al total de tareas, y los entregables finalizados (departamentos al 100%) frente al total de entregables.
+  2.  **keyStats**: Proporciona estadísticas clave. Cuenta el número de tareas completadas frente al total de tareas, y los entregables finalizados (Áreas al 100%) frente al total de entregables.
   3.  **risksAndBlockers**: Identifica y lista cualquier riesgo o bloqueo potencial. Ejemplos:
-      - Departamentos que están "en_proceso" pero tienen un bajo porcentaje de progreso.
+      - Áreas que están "en_proceso" pero tienen un bajo porcentaje de progreso.
       - Una fecha de entrega muy cercana pero con bajo progreso.
-      - Tareas "pendientes" en un departamento que ya está "en_proceso".
+      - Tareas "pendientes" en un Área que ya está "en_proceso".
       - Cualquier información crítica mencionada en las notas.
   4.  **overloadedEngineers**: Identifica a los ingenieros que tienen asignadas un gran número de tareas "en-progreso" o "pendientes" en comparación con otros. Lista sus nombres.
 

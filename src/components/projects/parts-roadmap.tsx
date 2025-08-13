@@ -83,7 +83,7 @@ const PartCard = ({ part, onClick, isSelected, onNameChange, onDelete }: { part:
                 className="text-base font-bold"
                 onEditingChange={setIsEditing}
                 />
-                <p className="text-sm text-muted-foreground">{completedStages} de {totalStages} departamentos completados</p>
+                <p className="text-sm text-muted-foreground">{completedStages} de {totalStages} áreas completadas</p>
                 <div className="flex items-center gap-2 mt-2">
                 <div className="w-full bg-muted rounded-full h-1.5">
                     <div className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }}></div>

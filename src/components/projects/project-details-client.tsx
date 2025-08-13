@@ -186,7 +186,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
         return (
             <div className="text-center py-16 text-muted-foreground bg-muted/20 rounded-lg">
                 <p className="text-lg font-semibold">Selecciona un parte</p>
-                <p>Elige un parte de la hoja de ruta de arriba para ver sus departamentos y tareas.</p>
+                <p>Elige un parte de la hoja de ruta de arriba para ver sus áreas y tareas.</p>
             </div>
         )
     }
@@ -198,8 +198,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
             onDepartmentAdd(selectedPart.id, newCommonDept as TaskComponent);
             onSaveCommonDepartment(newCommonDept);
             toast({
-                title: "Departamento guardado",
-                description: `"${newCommonDept}" se ha añadido a tus departamentos comunes.`
+                title: "Área guardada",
+                description: `"${newCommonDept}" se ha añadido a tus áreas comunes.`
             });
             setNewCommonDept("");
         }
@@ -223,7 +223,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <EditableField
                                             initialValue={stage.nombre}
                                             onSave={(newName) => onDepartmentNameChange(selectedPart!.id, stage.nombre, newName)}
-                                            label="Nombre del departamento"
+                                            label="Nombre del Área"
                                         />
                                     </h3>
                                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
@@ -345,7 +345,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     {stageTasks.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
-                                                Aún no hay tareas para este departamento.
+                                                Aún no hay tareas para esta área.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -359,7 +359,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                     <FolderPlus className="h-6 w-6 text-muted-foreground flex-shrink-0" />
                     <div className="flex-grow flex items-center gap-2">
                         <Input 
-                            placeholder="Nombre del nuevo departamento personalizado"
+                            placeholder="Nombre de la nueva área personalizada"
                             value={newStageName}
                             onChange={(e) => setNewStageName(e.target.value)}
                             className="flex-grow"
@@ -370,12 +370,12 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline">
-                                    Añadir Departamento
+                                    Añadir Área
                                     <ChevronDown className="h-4 w-4 ml-2" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <DropdownMenuLabel>Departamentos Comunes</DropdownMenuLabel>
+                                <DropdownMenuLabel>Áreas Comunes</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 {allCommonDepartments.map(stage => (
                                     <DropdownMenuItem key={stage} onSelect={() => onDepartmentAdd(selectedPart.id, stage)}>
@@ -387,7 +387,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     <p className="text-xs font-semibold text-muted-foreground px-1">Añadir nuevo al baúl</p>
                                     <div className="flex items-center gap-2">
                                         <Input
-                                            placeholder="Nuevo dpto..."
+                                            placeholder="Nueva área..."
                                             value={newCommonDept}
                                             onChange={(e) => setNewCommonDept(e.target.value)}
                                             onClick={(e) => e.stopPropagation()}
@@ -693,7 +693,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     toast({
                         variant: 'destructive',
                         title: "Error",
-                        description: `El departamento "${stageName}" ya existe en este parte.`,
+                        description: `El área "${stageName}" ya existe en este parte.`,
                     });
                     return part;
                 }
@@ -720,7 +720,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setSelectedPart(newPart);
             toast({
                 title: 'Parte Añadido',
-                description: 'Se ha añadido un nuevo parte al proyecto. Ya puedes añadir departamentos y tareas.',
+                description: 'Se ha añadido un nuevo parte al proyecto. Ya puedes añadir áreas y tareas.',
             });
         }
     };
@@ -797,8 +797,8 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveProject(updatedProject);
 
         toast({
-            title: 'Departamento Actualizado',
-            description: `El nombre del departamento se ha actualizado a "${newStageName}".`,
+            title: 'Área Actualizada',
+            description: `El nombre del área se ha actualizado a "${newStageName}".`,
         });
     };
     
@@ -967,13 +967,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             <Tabs defaultValue="tasks">
                 <div className="flex items-center justify-between">
                     <TabsList>
-                        <TabsTrigger value="tasks">Departamento</TabsTrigger>
+                        <TabsTrigger value="tasks">Áreas</TabsTrigger>
                         <TabsTrigger value="notes">Notas</TabsTrigger>
                         <TabsTrigger value="files">Archivos</TabsTrigger>
                     </TabsList>
                      {selectedPart && (
                         <div className="text-sm font-medium text-muted-foreground">
-                            Mostrando departamentos para: <span className="font-bold text-foreground">{selectedPart.name}</span>
+                            Mostrando áreas para: <span className="font-bold text-foreground">{selectedPart.name}</span>
                         </div>
                     )}
                 </div>

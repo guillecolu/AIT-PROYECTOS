@@ -136,7 +136,7 @@ export default function ProjectsTimeline({ projects, users, tasks }: { projects:
                                                             </TableBody>
                                                         </Table>
                                                         ) : (
-                                                            <p className="text-xs text-muted-foreground pl-7 py-2">No hay tareas en este departamento.</p>
+                                                            <p className="text-xs text-muted-foreground pl-7 py-2">No hay tareas en esta área.</p>
                                                         )}
                                                     </div>
                                                 )

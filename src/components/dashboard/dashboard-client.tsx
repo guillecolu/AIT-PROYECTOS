@@ -33,7 +33,7 @@ const EmptyDashboard = () => {
           Crear Nuevo Proyecto
         </Button>
         <div className="mt-8 text-sm text-muted-foreground/80">
-          <span className="font-semibold">Consejo:</span> puedes añadir departamentos (Diseño, Soldadura, etc.) desde la vista de un proyecto.
+          <span className="font-semibold">Consejo:</span> puedes añadir Áreas (Diseño, Soldadura, etc.) desde la vista de un proyecto.
         </div>
       </div>
     );

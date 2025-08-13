@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A flow to generate a list of tasks from a natural language prompt.
- * It identifies tasks, the person assigned, and the corresponding department.
+ * It identifies tasks, the person assigned, and the corresponding area.
  *
  * - generateTasksFromPrompt - Generates a structured list of tasks from a text prompt.
  * - GenerateTasksInput - The input type for the generateTasksFromPrompt function.
@@ -18,8 +18,8 @@ const TaskSchema = z.object({
 
 const GenerateTasksOutputSchema = z.array(
     z.object({
-        partName: z.string().describe("El nombre del departamento o sección al que pertenecen las tareas (ej: 'Diseño', 'Montaje', 'Soldadura')."),
-        tasks: z.array(TaskSchema).describe('La lista de tareas para ese departamento.'),
+        partName: z.string().describe("El nombre del Área o sección al que pertenecen las tareas (ej: 'Diseño', 'Montaje', 'Soldadura')."),
+        tasks: z.array(TaskSchema).describe('La lista de tareas para esa Área.'),
     })
 );
 
@@ -42,7 +42,7 @@ const prompt = ai.definePrompt({
   name: 'generateTasksFromPrompt',
   input: {schema: GenerateTasksInputSchema},
   output: {schema: GenerateTasksOutputSchema},
-  prompt: `Eres un asistente experto en gestión de proyectos industriales. Tu tarea es analizar una instrucción de un jefe de proyecto y convertirla en una lista estructurada de tareas, asignando cada una al departamento y persona correctos.
+  prompt: `Eres un asistente experto en gestión de proyectos industriales. Tu tarea es analizar una instrucción de un jefe de proyecto y convertirla en una lista estructurada de tareas, asignando cada una al Área y persona correctos.
 
 Contexto del Proyecto:
 - Nombre: "{{projectName}}"
@@ -58,11 +58,11 @@ Instrucción del Jefe de Proyecto:
 
 Tu Misión:
 Analiza la instrucción y extrae las tareas. Para cada tarea, identifica:
-1.  A qué departamento pertenece (Ej: Diseño, Montaje, Soldadura, Pruebas, etc.).
+1.  A qué Área pertenece (Ej: Diseño, Montaje, Soldadura, Pruebas, etc.).
 2.  La descripción específica de la tarea.
 3.  A qué persona se le ha asignado. Si no se menciona a nadie, puedes dejarlo sin asignar.
 
-Agrupa las tareas por el nombre del departamento. Si en la instrucción se mencionan varios departamentos, crea un objeto para cada uno.
+Agrupa las tareas por el nombre del Área. Si en la instrucción se mencionan varios Áreas, crea un objeto para cada uno.
 
 Ejemplo de resultado esperado si la instrucción fuera "Carla tiene que diseñar el soporte y Daniel debe encargarse del montaje":
 [

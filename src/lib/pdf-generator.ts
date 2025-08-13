@@ -81,7 +81,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
 
     const groupedTasks: Record<string, Record<string, Task[]>> = pendingTasks.reduce((acc, task) => {
         const partName = getPartName(task.partId);
-        const deptName = task.component || 'Sin Departamento';
+        const deptName = task.component || 'Sin Área';
 
         if (!acc[partName]) {
             acc[partName] = {};
@@ -111,7 +111,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
 
         const depts = groupedTasks[partName];
         Object.keys(depts).sort().forEach(deptName => {
-            // Add a group header row for the Department
+            // Add a group header row for the Area
             tableBody.push([{
                 content: deptName,
                 colSpan: 8,

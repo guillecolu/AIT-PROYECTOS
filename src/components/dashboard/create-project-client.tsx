@@ -202,7 +202,7 @@ export default function CreateProjectClient() {
         <Card>
             <CardHeader>
                 <CardTitle>Partes del Proyecto</CardTitle>
-                <CardDescription>Añade y nombra las partes o sub-proyectos que componen este proyecto. Los departamentos se definirán dentro de cada parte más adelante.</CardDescription>
+                <CardDescription>Añade y nombra las partes o sub-proyectos que componen este proyecto. Las áreas se definirán dentro de cada parte más adelante.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
