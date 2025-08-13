@@ -11,59 +11,37 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Project, Part, Attachment } from '@/lib/types';
-import { UploadCloud, File as FileIcon, Trash2, Link as LinkIcon, Loader2, FolderSearch } from 'lucide-react';
+import { UploadCloud, File as FileIcon, Trash2, Link as LinkIcon, Loader2, FolderSearch, PlusCircle } from 'lucide-react';
+import { Label } from '../ui/label';
 
 interface ProjectFilesProps {
     project: Project;
     selectedPart: Part | null;
-    onFileUpload: (partId: string, file: File) => Promise<void>;
+    onLinkAdd: (partId: string, url: string, name: string) => Promise<void>;
     onFileDelete: (partId: string, attachmentId: string) => Promise<void>;
 }
 
-const PartFileDropzone = ({ part, onFileUpload, onFileDelete }: { part: Part; onFileUpload: (partId: string, file: File) => void; onFileDelete: (partId: string, attachmentId: string) => void }) => {
-    const [isDragging, setIsDragging] = useState(false);
+const PartLinker = ({ part, onLinkAdd, onFileDelete }: { part: Part; onLinkAdd: (partId: string, url: string, name: string) => Promise<void>; onFileDelete: (partId: string, attachmentId: string) => Promise<void> }) => {
     const [isLoading, setIsLoading] = useState(false);
+    const [newLinkUrl, setNewLinkUrl] = useState('');
+    const [newLinkName, setNewLinkName] = useState('');
     const { toast } = useToast();
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    };
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    };
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-        const files = e.dataTransfer.files;
-        if (files && files.length > 0) {
-            handleFileUpload(files[0]);
-        }
-    };
     
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            handleFileUpload(files[0]);
+    const handleAddLink = async () => {
+        if (!newLinkUrl.trim() || !newLinkName.trim()) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Por favor, introduce un nombre y una URL para el enlace.' });
+            return;
         }
-    }
 
-    const handleFileUpload = async (file: File) => {
         setIsLoading(true);
         try {
-            await onFileUpload(part.id, file);
+            await onLinkAdd(part.id, newLinkUrl, newLinkName);
+            setNewLinkUrl('');
+            setNewLinkName('');
+            toast({ title: 'Enlace añadido', description: 'El enlace se ha guardado en el proyecto.' });
         } catch (error) {
-            console.error("File upload error:", error);
-            toast({ variant: 'destructive', title: 'Error al subir', description: 'No se pudo subir el archivo.' });
+            console.error("Link add error:", error);
+            toast({ variant: 'destructive', title: 'Error al añadir', description: 'No se pudo guardar el enlace.' });
         } finally {
             setIsLoading(false);
         }
@@ -79,51 +57,44 @@ const PartFileDropzone = ({ part, onFileUpload, onFileDelete }: { part: Part; on
                 <CardTitle>{part.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                        "relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
-                        isDragging ? "border-primary bg-primary/10" : "border-border hover:border-primary/50 hover:bg-muted/50"
-                    )}
-                >
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="h-8 w-8 text-primary animate-spin mb-2" />
-                            <p className="text-sm text-muted-foreground">Subiendo...</p>
-                        </>
-                    ) : (
-                        <>
-                            <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
-                            <p className="text-sm text-muted-foreground">
-                                <span className="font-semibold text-primary">Haz clic para subir</span> o arrastra y suelta un archivo
-                            </p>
-                            <p className="text-xs text-muted-foreground">Cualquier tipo de archivo</p>
-                        </>
-                    )}
-                     <input
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden"
-                        onChange={handleFileSelect}
-                        disabled={isLoading}
-                    />
+                <div className="flex flex-col gap-4 rounded-lg border p-4">
+                    <div className='space-y-1'>
+                        <Label htmlFor="link-name">Nombre del Enlace</Label>
+                        <Input 
+                            id="link-name"
+                            placeholder="Ej: Plano de montaje"
+                            value={newLinkName}
+                            onChange={(e) => setNewLinkName(e.target.value)}
+                            disabled={isLoading}
+                        />
+                    </div>
+                     <div className='space-y-1'>
+                        <Label htmlFor="link-url">URL del Archivo</Label>
+                        <Input 
+                            id="link-url"
+                            placeholder="https://ejemplo.com/documento.pdf"
+                            value={newLinkUrl}
+                            onChange={(e) => setNewLinkUrl(e.target.value)}
+                            disabled={isLoading}
+                        />
+                    </div>
+                    <Button onClick={handleAddLink} disabled={isLoading} className="self-end">
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                        {isLoading ? 'Añadiendo...' : 'Añadir Enlace'}
+                    </Button>
                 </div>
 
                 {part.attachments && part.attachments.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="font-medium text-sm">Archivos Subidos</h4>
+                        <h4 className="font-medium text-sm">Enlaces Guardados</h4>
                         <div className="space-y-2 rounded-md border p-2">
                              {part.attachments.map(att => (
                                 <div key={att.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md group">
-                                    <FileIcon className="h-5 w-5 text-muted-foreground" />
+                                    <LinkIcon className="h-5 w-5 text-muted-foreground" />
                                     <div className="flex-grow">
                                         <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:underline truncate">{att.name}</a>
                                         <p className="text-xs text-muted-foreground">
-                                            Subido el {new Date(att.uploadedAt).toLocaleDateString()}
+                                            Añadido el {new Date(att.uploadedAt).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(att.id)}>
@@ -140,7 +111,7 @@ const PartFileDropzone = ({ part, onFileUpload, onFileDelete }: { part: Part; on
 };
 
 
-export default function ProjectFiles({ project, selectedPart, onFileUpload, onFileDelete }: ProjectFilesProps) {
+export default function ProjectFiles({ project, selectedPart, onLinkAdd, onFileDelete }: ProjectFilesProps) {
 
     if (!selectedPart) {
         return (
@@ -149,7 +120,7 @@ export default function ProjectFiles({ project, selectedPart, onFileUpload, onFi
                      <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-4">
                         <FolderSearch className="h-12 w-12" />
                         <p className="font-semibold text-lg">Selecciona un parte</p>
-                        <p className="text-sm">Elige un parte de la hoja de ruta para ver sus archivos adjuntos.</p>
+                        <p className="text-sm">Elige un parte de la hoja de ruta para ver sus enlaces guardados.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -158,7 +129,7 @@ export default function ProjectFiles({ project, selectedPart, onFileUpload, onFi
     
     return (
         <div>
-             <PartFileDropzone part={selectedPart} onFileUpload={onFileUpload} onFileDelete={onFileDelete} />
+             <PartLinker part={selectedPart} onLinkAdd={onLinkAdd} onFileDelete={onFileDelete} />
         </div>
     );
 }

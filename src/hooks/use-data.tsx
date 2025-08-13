@@ -31,7 +31,7 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<void>;
+  addAttachmentToPart: (projectId: string, partId: string, url: string, name: string) => Promise<void>;
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
@@ -211,7 +211,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-  const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
+  const addAttachmentToPart = async (projectId: string, partId: string, url: string, name: string): Promise<void> => {
     return new Promise(async (resolve, reject) => {
       try {
         const currentUser = users.find(u => u.role === "Admin") || users[0];
@@ -219,18 +219,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             throw new Error("User not found or not authenticated.");
         }
 
-        const cleanName = file.name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
-        const filePath = `uploads/projects/${projectId}/${partId}/${Date.now()}_${cleanName}`;
-        
-        const url = await uploadFile(file, filePath);
-
         const newAttachment: Attachment = {
             id: crypto.randomUUID(),
-            name: file.name,
+            name: name,
             url: url,
-            path: filePath,
-            size: file.size,
-            type: file.type,
+            path: '', // Not applicable for external links
+            size: 0, // Not applicable
+            type: 'link',
             uploadedAt: new Date().toISOString(),
             uploadedBy: currentUser.id,
         };
@@ -253,7 +248,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         // Optimistic UI update
         setProjects(prevProjects => prevProjects.map(p => {
           if (p.id === projectId) {
-            return { ...p, parts: updatedParts || p.parts };
+            const newP = { ...p, parts: updatedParts || p.parts };
+            return newP;
           }
           return p;
         }));
@@ -275,14 +271,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
         if (!attachment) return;
 
-        // Note: Deleting from Firebase Storage is not implemented here to avoid accidental data loss.
-        // const fileRef = ref(storage, attachment.path);
-        // await deleteObject(fileRef);
-
+        // Note: Deleting from Firebase Storage is not needed as we are dealing with links
         const updatedParts = project.parts?.map(p => {
             if (p.id === partId) {
                 const attachments = p.attachments?.filter(att => att.id !== attachmentId);
-                return { ...part, attachments };
+                return { ...p, attachments };
             }
             return p;
         });

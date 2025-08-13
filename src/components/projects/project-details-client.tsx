@@ -824,9 +824,8 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         }
     };
     
-    const handleFileUploaded = async (partId: string, file: File) => {
-        await addAttachmentToPart(internalProject.id, partId, file);
-        toast({ title: 'Archivo subido', description: `"${file.name}" se ha añadido a la parte.`});
+    const handleLinkAdd = async (partId: string, url: string, name: string) => {
+        await addAttachmentToPart(internalProject.id, partId, url, name);
         const updatedProject = projects.find(p => p.id === internalProject.id);
         if (updatedProject) {
             setInternalProject(updatedProject);
@@ -982,7 +981,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     <ProjectFiles 
                         project={internalProject}
                         selectedPart={selectedPart}
-                        onFileUpload={handleFileUploaded}
+                        onLinkAdd={handleLinkAdd}
                         onFileDelete={handleFileDeleted}
                     />
                 </TabsContent>
