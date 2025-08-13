@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { Project } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FolderArchive, Users, AlertTriangle, FolderClosed, FolderKanban, FolderPlus, Loader2 } from 'lucide-react';
@@ -12,32 +12,6 @@ import ProjectCard from './project-card';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useData } from '@/hooks/use-data';
 import { useRouter } from 'next/navigation';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-const SortableProjectCard = ({ project, users }: { project: Project, users: any[] }) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-    } = useSortable({ id: project.id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            <ProjectCard project={project} users={users} />
-        </div>
-    );
-};
-
 
 const EmptyDashboard = () => {
     const router = useRouter();
@@ -105,14 +79,7 @@ const StatCard = ({ title, value, icon: Icon, href, tooltipContent }: { title: s
 
 
 export default function DashboardClient() {
-    const { projects, setProjects, users, loading, saveProject } = useData();
-
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
+    const { projects, users, loading } = useData();
 
     const { activeProjects, urgentProjects, closedProjects } = useMemo(() => {
         const active = projects.filter(p => p.status === 'activo');
@@ -123,28 +90,6 @@ export default function DashboardClient() {
         };
     }, [projects]);
     
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (over && active.id !== over.id) {
-            setProjects((items) => {
-                const oldIndex = items.findIndex((item) => item.id === active.id);
-                const newIndex = items.findIndex((item) => item.id === over.id);
-                const newOrder = arrayMove(items, oldIndex, newIndex);
-
-                // Update order property and save to db
-                newOrder.forEach((project, index) => {
-                    if (project.order !== index) {
-                        project.order = index;
-                        saveProject(project);
-                    }
-                });
-
-                return newOrder;
-            });
-        }
-    };
-
     if (loading) {
         return <div className="flex items-center justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     }
@@ -152,16 +97,6 @@ export default function DashboardClient() {
     if (projects.length === 0 && !loading) {
         return <EmptyDashboard />;
     }
-
-    const DndWrapper = ({ children, items }: { children: React.ReactNode, items: Project[] }) => (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map(p => p.id)} strategy={verticalListSortingStrategy}>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {children}
-                </div>
-            </SortableContext>
-        </DndContext>
-    );
 
     return (
         <div className="space-y-6">
@@ -215,11 +150,11 @@ export default function DashboardClient() {
                         <AlertTriangle className="text-destructive" />
                         Proyectos Urgentes
                     </h2>
-                    <DndWrapper items={urgentProjects}>
+                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {urgentProjects.map(project => (
-                           <SortableProjectCard key={project.id} project={project} users={users} />
+                           <ProjectCard key={project.id} project={project} users={users} />
                         ))}
-                    </DndWrapper>
+                    </div>
                 </div>
             )}
             
@@ -228,11 +163,11 @@ export default function DashboardClient() {
                    {urgentProjects.length > 0 ? "Otros Proyectos Activos" : "Proyectos Activos"}
                 </h2>
                  {activeProjects.filter(p => !p.isUrgent).length > 0 ? (
-                     <DndWrapper items={activeProjects.filter(p => !p.isUrgent)}>
+                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {activeProjects.filter(p => !p.isUrgent).map(project => (
-                             <SortableProjectCard key={project.id} project={project} users={users} />
+                             <ProjectCard key={project.id} project={project} users={users} />
                         ))}
-                    </DndWrapper>
+                    </div>
                  ) : (
                     <div className="col-span-full text-center py-16 text-muted-foreground bg-card rounded-lg border">
                         <p className="text-lg font-semibold">No hay más proyectos activos</p>
