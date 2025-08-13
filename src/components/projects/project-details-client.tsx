@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -239,7 +240,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <TableHead>Asignado a</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead>Entrega</TableHead>
-                                        <TableHead>Notas</TableHead>
+                                        <TableHead>Descripción</TableHead>
                                         <TableHead>Tiempo (Est/Real)</TableHead>
                                         <TableHead className="w-[100px]">Adjunto</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
@@ -299,11 +300,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             <TableCell>
                                                 <ClientSideDate dateString={task.deadline} />
                                             </TableCell>
-                                             <TableCell>
-                                                <Button variant="outline" size="sm" onClick={() => openNotesModal(task)}>
-                                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                                    Notas ({task.comments?.length || 0})
-                                                </Button>
+                                             <TableCell className="max-w-[200px] truncate text-muted-foreground text-xs" title={task.description}>
+                                                {task.description}
                                             </TableCell>
                                             <TableCell>{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
                                             <TableCell>
@@ -327,6 +325,11 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                             <Pencil className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openNotesModal(task)}>
+                                                            <MessageSquare className="mr-2 h-4 w-4" />
+                                                            Notas ({task.comments?.length || 0})
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => onTaskDelete(task.id)} className="text-destructive">
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Eliminar
@@ -972,3 +975,4 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
+
