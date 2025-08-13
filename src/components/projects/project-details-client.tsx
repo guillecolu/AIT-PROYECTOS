@@ -240,9 +240,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <TableHead>Asignado a</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead>Entrega</TableHead>
-                                        <TableHead>Descripción</TableHead>
                                         <TableHead>Tiempo (Est/Real)</TableHead>
-                                        <TableHead className="w-[100px]">Adjunto</TableHead>
+                                        <TableHead>Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -300,18 +299,16 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             <TableCell>
                                                 <ClientSideDate dateString={task.deadline} />
                                             </TableCell>
-                                             <TableCell className="max-w-[200px] truncate text-muted-foreground text-xs" title={task.description}>
-                                                {task.description}
-                                            </TableCell>
                                             <TableCell>{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
                                             <TableCell>
-                                                {task.attachmentURL && (
-                                                     <Button variant="outline" size="icon" asChild>
-                                                        <a href={task.attachmentURL} target="_blank" rel="noopener noreferrer" title={task.attachmentName}>
-                                                            <Paperclip className="h-4 w-4" />
-                                                        </a>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => handleOpenModalForEdit(task)}>
+                                                        Descripción
                                                     </Button>
-                                                )}
+                                                    <Button variant="outline" size="sm" onClick={() => openNotesModal(task)}>
+                                                        Notas ({task.comments?.length || 0})
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <DropdownMenu>
@@ -325,9 +322,11 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                             <Pencil className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => openNotesModal(task)}>
-                                                            <MessageSquare className="mr-2 h-4 w-4" />
-                                                            Notas ({task.comments?.length || 0})
+                                                        <DropdownMenuItem asChild>
+                                                             <a href={task.attachmentURL} target="_blank" rel="noopener noreferrer" className={!task.attachmentURL ? 'pointer-events-none text-muted-foreground' : ''}>
+                                                                <Paperclip className="mr-2 h-4 w-4" />
+                                                                Ver Adjunto
+                                                            </a>
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => onTaskDelete(task.id)} className="text-destructive">
@@ -610,7 +609,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setInternalTasks(prevTasks => [...prevTasks, newTask]);
         }
         
-        const savedTask = await saveTask(updatedTaskData, attachment);
+        await saveTask(updatedTaskData, attachment);
         
         // After DB save, get the latest project state
         const updatedProject = await saveProject(internalProject); // This might be redundant if saveTask returns it
@@ -975,4 +974,3 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
-
