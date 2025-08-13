@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
 import { startOfDay, addDays, isBefore } from 'date-fns';
 
@@ -31,7 +31,7 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, url: string, name: string) => Promise<Attachment | null>;
+  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Attachment | null>;
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
@@ -51,6 +51,35 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [commonDepartments, setCommonDepartments] = useState<string[]>([]);
   const [commonTasks, setCommonTasks] = useState<CommonTask[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const uploadFile = async (file: File, path: string, onProgress?: (progress: number) => void): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const storageRef = ref(storage, path);
+        const contentType = mime.lookup(file.name) || 'application/octet-stream';
+        const metadata = { contentType };
+        
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                onProgress?.(progress);
+            },
+            (error) => {
+                console.error("Upload error:", error.code, error.message);
+                reject(error);
+            },
+            async () => {
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                    resolve(downloadURL);
+                } catch (error) {
+                    reject(error);
+                }
+            }
+        );
+    });
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -151,34 +180,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setAppConfig(newConfig as AppConfig);
   };
 
-  const uploadFile = async (file: File, path: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const storageRef = ref(storage, path);
-        const contentType = mime.lookup(file.name) || 'application/octet-stream';
-        const metadata = { contentType };
-        
-        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
-
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                // Can be used to display progress
-            },
-            (error) => {
-                console.error("Upload error:", error.code, error.message);
-                reject(error);
-            },
-            async () => {
-                try {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    resolve(downloadURL);
-                } catch (error) {
-                    reject(error);
-                }
-            }
-        );
-    });
-  }
-
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
     if (commonDepartments.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
     const newDocRef = doc(collection(db, "commonDepartments"));
@@ -210,37 +211,47 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return newPart;
   };
 
-    const addAttachmentToPart = async (projectId: string, partId: string, url: string, name: string): Promise<Attachment | null> => {
+    const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Attachment | null> => {
         const project = projects.find(p => p.id === projectId);
         if (!project) return null;
 
         const currentUser = users.find(u => u.role === "Admin") || users[0];
         if (!currentUser) throw new Error("User not found.");
-
-        const newAttachment: Attachment = {
-            id: crypto.randomUUID(),
-            name: name,
-            url: url,
-            path: '', // Not applicable for external links
-            size: 0, // Not applicable
-            type: 'link',
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: currentUser.id,
-        };
-
-        const updatedParts = (project.parts || []).map(part => {
-            if (part.id === partId) {
-                return { ...part, attachments: [...(part.attachments || []), newAttachment] };
-            }
-            return part;
-        });
-
-        const updatedProject = { ...project, parts: updatedParts };
-        await saveProject(updatedProject);
-
-        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
         
-        return newAttachment;
+        const safeName = file.name.replace(/[^\w.\-]/g, "_");
+        const path = `uploads/projects/${projectId}/${partId}/${Date.now()}_${safeName}`;
+
+        try {
+            const url = await uploadFile(file, path);
+            
+            const newAttachment: Attachment = {
+                id: crypto.randomUUID(),
+                name: file.name,
+                url: url,
+                path: path,
+                size: file.size,
+                type: file.type || 'application/octet-stream',
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: currentUser.id,
+            };
+
+            const updatedParts = (project.parts || []).map(part => {
+                if (part.id === partId) {
+                    return { ...part, attachments: [...(part.attachments || []), newAttachment] };
+                }
+                return part;
+            });
+
+            const updatedProject = { ...project, parts: updatedParts };
+            await saveProject(updatedProject);
+            
+            setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+            return newAttachment;
+
+        } catch (error) {
+            console.error("Error adding attachment:", error);
+            throw error; // Re-throw to be caught by the UI
+        }
     };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<void> => {
@@ -252,7 +263,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
         if (!attachment) return;
 
-        // Note: Deleting from Firebase Storage is not needed as we are dealing with links
+        // Delete from Firebase Storage
+        const fileRef = ref(storage, attachment.path);
+        await deleteObject(fileRef);
+
         const updatedParts = project.parts?.map(p => {
             if (p.id === partId) {
                 const attachments = p.attachments?.filter(att => att.id !== attachmentId);
@@ -504,3 +518,4 @@ export const useData = () => {
 
 
     
+

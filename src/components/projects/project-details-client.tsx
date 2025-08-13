@@ -824,30 +824,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         }
     };
     
-    const handleLinkAdd = async (partId: string, url: string, name: string) => {
-        const newAttachment = await addAttachmentToPart(internalProject.id, partId, url, name);
-        if (newAttachment) {
-            const updatedProject = { ...internalProject };
-            const partIndex = updatedProject.parts.findIndex(p => p.id === partId);
-            if (partIndex !== -1) {
-                if (!updatedProject.parts[partIndex].attachments) {
-                    updatedProject.parts[partIndex].attachments = [];
-                }
-                updatedProject.parts[partIndex].attachments?.push(newAttachment);
-                setInternalProject(updatedProject);
-            }
-        }
+    const handleFileUploaded = async (partId: string, file: File) => {
+        await addAttachmentToPart(internalProject.id, partId, file);
+        // The useData hook will update the state, which will cause a re-render
     };
 
     const handleFileDeleted = async (partId: string, attachmentId: string) => {
         await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
-        const updatedProject = { ...internalProject };
-        const partIndex = updatedProject.parts.findIndex(p => p.id === partId);
-        if (partIndex !== -1) {
-            updatedProject.parts[partIndex].attachments = updatedProject.parts[partIndex].attachments?.filter(a => a.id !== attachmentId);
-            setInternalProject(updatedProject);
-        }
-        toast({ title: 'Archivo eliminado'});
     };
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
@@ -990,7 +973,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     <ProjectFiles 
                         project={internalProject}
                         selectedPart={selectedPart}
-                        onLinkAdd={handleLinkAdd}
+                        onFileUpload={handleFileUploaded}
                         onFileDelete={handleFileDeleted}
                     />
                 </TabsContent>
