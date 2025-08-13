@@ -82,7 +82,6 @@ export default function AppHeader() {
         </SheetContent>
       </Sheet>
       <div className="relative ml-auto flex items-center gap-4 md:grow-0">
-         <MeetingModal />
          <DropdownMenu>
             <DropdownMenuTrigger asChild>
             <Button
