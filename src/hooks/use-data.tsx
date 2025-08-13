@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -158,41 +159,42 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<void> => {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const projectDocRef = doc(db, 'projects', projectId);
-            const projectDoc = await getDoc(projectDocRef);
-            if (!projectDoc.exists()) {
-                throw new Error("Project not found");
-            }
+    try {
+        const projectDocRef = doc(db, 'projects', projectId);
+        
+        // Upload file first
+        const filePath = `projects/${projectId}/${partId}/${file.name}`;
+        const url = await uploadFile(file, filePath);
 
-            const projectData = projectDoc.data() as Project;
-            const filePath = `projects/${projectId}/${partId}/${file.name}`;
-            const url = await uploadFile(file, filePath);
+        // Then, update the document
+        const newAttachment: Attachment = {
+            id: crypto.randomUUID(),
+            name: file.name,
+            url: url,
+            uploadedAt: new Date().toISOString(),
+        };
 
-            const newAttachment: Attachment = {
-                id: crypto.randomUUID(),
-                name: file.name,
-                url: url,
-                uploadedAt: new Date().toISOString(),
-            };
-
-            const updatedParts = projectData.parts?.map(part => {
-                if (part.id === partId) {
-                    const attachments = [...(part.attachments || []), newAttachment];
-                    return { ...part, attachments };
-                }
-                return part;
-            });
-
-            await updateDoc(projectDocRef, { parts: updatedParts });
-            await fetchData();
-            resolve();
-        } catch (error) {
-            console.error("Error in addAttachmentToPart:", error);
-            reject(error);
+        const projectDoc = await getDoc(projectDocRef);
+        if (!projectDoc.exists()) {
+            throw new Error("Project not found");
         }
-    });
+
+        const projectData = projectDoc.data() as Project;
+        const updatedParts = projectData.parts?.map(part => {
+            if (part.id === partId) {
+                const attachments = [...(part.attachments || []), newAttachment];
+                return { ...part, attachments };
+            }
+            return part;
+        });
+
+        await updateDoc(projectDocRef, { parts: updatedParts });
+        await fetchData(); // Refresh data to get the latest state
+    } catch (error) {
+        console.error("Error in addAttachmentToPart:", error);
+        // Rethrow the error to be caught by the calling function
+        throw error;
+    }
 };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<Project | null> => {
