@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useCallback } from 'react';
@@ -10,10 +11,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { Project, Part, Attachment } from '@/lib/types';
-import { UploadCloud, File as FileIcon, Trash2, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { UploadCloud, File as FileIcon, Trash2, Link as LinkIcon, Loader2, FolderSearch } from 'lucide-react';
 
 interface ProjectFilesProps {
     project: Project;
+    selectedPart: Part | null;
     onFileUpload: (partId: string, file: File) => Promise<void>;
     onFileDelete: (partId: string, attachmentId: string) => Promise<void>;
 }
@@ -138,28 +140,25 @@ const PartFileDropzone = ({ part, onFileUpload, onFileDelete }: { part: Part; on
 };
 
 
-export default function ProjectFiles({ project, onFileUpload, onFileDelete }: ProjectFilesProps) {
+export default function ProjectFiles({ project, selectedPart, onFileUpload, onFileDelete }: ProjectFilesProps) {
 
-    if (!project.parts || project.parts.length === 0) {
+    if (!selectedPart) {
         return (
             <Card>
                 <CardContent className="p-6">
-                    <Alert>
-                        <AlertTitle>No hay partes en este proyecto</AlertTitle>
-                        <AlertDescription>
-                            Para poder adjuntar archivos, primero debes crear al menos un parte para el proyecto en la pestaña "Departamento".
-                        </AlertDescription>
-                    </Alert>
+                     <div className="text-center py-16 text-muted-foreground flex flex-col items-center gap-4">
+                        <FolderSearch className="h-12 w-12" />
+                        <p className="font-semibold text-lg">Selecciona un parte</p>
+                        <p className="text-sm">Elige un parte de la hoja de ruta para ver sus archivos adjuntos.</p>
+                    </div>
                 </CardContent>
             </Card>
         );
     }
     
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {project.parts.map(part => (
-                <PartFileDropzone key={part.id} part={part} onFileUpload={onFileUpload} onFileDelete={onFileDelete} />
-            ))}
+        <div>
+             <PartFileDropzone part={selectedPart} onFileUpload={onFileUpload} onFileDelete={onFileDelete} />
         </div>
     );
 }
