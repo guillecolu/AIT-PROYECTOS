@@ -17,7 +17,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { startOfDay, addDays, isBefore } from 'date-fns';
+import { startOfDay, addDays, isBefore, endOfDay } from 'date-fns';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -87,15 +87,21 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
     const getFilteredTasks = () => {
         if (!selectedAlertType) return [];
         
-        const hoy = startOfDay(new Date());
-        const proximasLimite = addDays(hoy, 3);
+        const hoy = new Date();
+        const comienzoHoy = startOfDay(hoy);
+        const finalHoy = endOfDay(hoy);
+        const proximasLimite = addDays(comienzoHoy, 3);
         const isDone = (task: Task) => task.status === 'finalizada';
 
         switch(selectedAlertType) {
             case 'atrasadas':
-                return tasks.filter(t => t.deadline && isBefore(new Date(t.deadline), hoy) && !isDone(t));
+                return tasks.filter(t => t.deadline && isBefore(new Date(t.deadline), comienzoHoy) && !isDone(t));
             case 'proximas':
-                 return tasks.filter(t => t.deadline && new Date(t.deadline) >= hoy && new Date(t.deadline) <= proximasLimite && !isDone(t));
+                 return tasks.filter(t => {
+                    if (!t.deadline || isDone(t)) return false;
+                    const deadlineDate = new Date(t.deadline);
+                    return deadlineDate > finalHoy && deadlineDate <= proximasLimite;
+                });
             case 'sinAsignar':
                 return tasks.filter(t => !t.assignedToId && !isDone(t));
             case 'bloqueadas':

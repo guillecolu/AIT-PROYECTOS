@@ -8,7 +8,7 @@ import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
-import { startOfDay, addDays, isBefore } from 'date-fns';
+import { startOfDay, addDays, isBefore, endOfDay } from 'date-fns';
 
 interface DataContextProps {
   projects: Project[];
@@ -122,13 +122,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Simulate backend alert generation for each project
       projectsData = projectsData.map(project => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
-          const hoy = startOfDay(new Date());
-          const proximasLimite = addDays(hoy, 3);
+          const hoy = new Date();
+          const comienzoHoy = startOfDay(hoy);
+          const finalHoy = endOfDay(hoy);
+          const proximasLimite = addDays(comienzoHoy, 3);
 
           const isDone = (task: Task) => task.status === 'finalizada';
 
-          const atrasadas = projectTasks.filter(t => t.deadline && isBefore(new Date(t.deadline), hoy) && !isDone(t));
-          const proximas = projectTasks.filter(t => t.deadline && new Date(t.deadline) >= hoy && new Date(t.deadline) <= proximasLimite && !isDone(t));
+          const atrasadas = projectTasks.filter(t => t.deadline && isBefore(new Date(t.deadline), comienzoHoy) && !isDone(t));
+          const proximas = projectTasks.filter(t => {
+                if (!t.deadline || isDone(t)) return false;
+                const deadlineDate = new Date(t.deadline);
+                return deadlineDate > finalHoy && deadlineDate <= proximasLimite;
+            });
           const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
           const bloqueadas = projectTasks.filter(t => t.blocked === true);
 
