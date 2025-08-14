@@ -222,10 +222,10 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
                     const colors = areaColors[stage.nombre as keyof typeof areaColors] || areaColors.default;
                     return (
-                        <div key={stage.nombre} className={cn("rounded-lg p-4 space-y-4", colors.bgColor)}>
+                        <div key={stage.nombre} className="rounded-lg p-4 space-y-4" style={{ backgroundColor: colors.bgColor, color: colors.textColor }}>
                              <div className="flex items-center justify-between">
                                 <div className="group flex items-center gap-2">
-                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize", colors.textColor)}>
+                                     <h3 className="font-semibold text-lg flex items-center capitalize" style={{ color: colors.textColor }}>
                                         {componentIcons[stage.nombre] || <Wrench className="h-4 w-4 mr-2" />}
                                         <EditableField
                                             initialValue={stage.nombre}
@@ -233,24 +233,24 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             label="Nombre del Área"
                                         />
                                     </h3>
-                                    <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100", colors.textColor)} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)}>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor' }}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Añadir Tarea
                                 </Button>
                             </div>
-                            <Table>
+                            <Table className="bg-card/50 rounded-md">
                                 <TableHeader>
                                     <TableRow className="border-b-foreground/10">
-                                        <TableHead className={cn(colors.textColor)}>Tarea</TableHead>
-                                        <TableHead className={cn(colors.textColor)}>Asignado a</TableHead>
-                                        <TableHead className={cn(colors.textColor)}>Estado</TableHead>
-                                        <TableHead className={cn(colors.textColor)}>Entrega</TableHead>
-                                        <TableHead className={cn(colors.textColor)}>Tiempo (Est/Real)</TableHead>
-                                        <TableHead className={cn(colors.textColor)}>Acciones</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Tarea</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Asignado a</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Estado</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Entrega</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Tiempo (Est/Real)</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>

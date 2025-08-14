@@ -1,13 +1,13 @@
-export const areaColors: Record<string, { borderColor: string, bgColor: string, textColor: string, pdfFillColor: string, pdfTextColor: string }> = {
-    'Diseño':       { borderColor: 'border-green-500', bgColor: 'bg-green-50', textColor: 'text-green-800', pdfFillColor: '#D1FAE5', pdfTextColor: '#065F46' },
-    'Corte':        { borderColor: 'border-amber-500', bgColor: 'bg-amber-50', textColor: 'text-amber-800', pdfFillColor: '#FEF3C7', pdfTextColor: '#92400E' },
-    'Soldadura':    { borderColor: 'border-red-500',   bgColor: 'bg-red-50',   textColor: 'text-red-800', pdfFillColor: '#FEE2E2', pdfTextColor: '#991B1B' },
-    'Montaje':      { borderColor: 'border-blue-500',  bgColor: 'bg-blue-50',  textColor: 'text-blue-800', pdfFillColor: '#DBEAFE', pdfTextColor: '#1E40AF' },
-    'Estructura':   { borderColor: 'border-indigo-500',bgColor: 'bg-indigo-50',textColor: 'text-indigo-800', pdfFillColor: '#E0E7FF', pdfTextColor: '#3730A3' },
-    'Cableado':     { borderColor: 'border-purple-500',bgColor: 'bg-purple-50',textColor: 'text-purple-800', pdfFillColor: '#F3E8FF', pdfTextColor: '#5B21B6' },
-    'Eléctrico':    { borderColor: 'border-yellow-500',bgColor: 'bg-yellow-50',textColor: 'text-yellow-800', pdfFillColor: '#FEF9C3', pdfTextColor: '#854d0e' },
-    'Programación': { borderColor: 'border-sky-500',   bgColor: 'bg-sky-50',   textColor: 'text-sky-800', pdfFillColor: '#E0F2FE', pdfTextColor: '#0369A1' },
-    'Pruebas':      { borderColor: 'border-teal-500',  bgColor: 'bg-teal-50',  textColor: 'text-teal-800', pdfFillColor: '#CCFBF1', pdfTextColor: '#0F766E' },
-    'Fabricacion':  { borderColor: 'border-cyan-500',  bgColor: 'bg-cyan-50',  textColor: 'text-cyan-800', pdfFillColor: '#CFFAFE', pdfTextColor: '#0E7490' },
-    'default':      { borderColor: 'border-gray-400',  bgColor: 'bg-gray-50',  textColor: 'text-gray-800', pdfFillColor: '#E5E7EB', pdfTextColor: '#1F2937' }
+export const areaColors: Record<string, { bgColor: string, textColor: string, pdfFillColor: string, pdfTextColor: string }> = {
+    'Diseño':       { bgColor: 'hsl(145 63% 94%)', textColor: 'hsl(150 78% 21%)', pdfFillColor: '#D1FAE5', pdfTextColor: '#065F46' },
+    'Corte':        { bgColor: 'hsl(45 93% 95%)', textColor: 'hsl(35 83% 33%)', pdfFillColor: '#FEF3C7', pdfTextColor: '#92400E' },
+    'Soldadura':    { bgColor: 'hsl(0 84% 97%)',  textColor: 'hsl(0 72% 38%)', pdfFillColor: '#FEE2E2', pdfTextColor: '#991B1B' },
+    'Montaje':      { bgColor: 'hsl(221 83% 97%)',textColor: 'hsl(221 68% 39%)', pdfFillColor: '#DBEAFE', pdfTextColor: '#1E40AF' },
+    'Estructura':   { bgColor: 'hsl(244 89% 97%)',textColor: 'hsl(243 59% 49%)', pdfFillColor: '#E0E7FF', pdfTextColor: '#3730A3' },
+    'Cableado':     { bgColor: 'hsl(271 91% 97%)',textColor: 'hsl(266 70% 44%)', pdfFillColor: '#F3E8FF', pdfTextColor: '#5B21B6' },
+    'Eléctrico':    { bgColor: 'hsl(54 94% 95%)', textColor: 'hsl(46 89% 36%)', pdfFillColor: '#FEF9C3', pdfTextColor: '#854d0e' },
+    'Programación': { bgColor: 'hsl(199 98% 96%)',textColor: 'hsl(204 93% 33%)', pdfFillColor: '#E0F2FE', pdfTextColor: '#0369A1' },
+    'Pruebas':      { bgColor: 'hsl(167 82% 96%)',textColor: 'hsl(173 80% 28%)', pdfFillColor: '#CCFBF1', pdfTextColor: '#0F766E' },
+    'Fabricacion':  { bgColor: 'hsl(187 96% 96%)',textColor: 'hsl(192 84% 31%)', pdfFillColor: '#CFFAFE', pdfTextColor: '#0E7490' },
+    'default':      { bgColor: 'hsl(220 13% 95%)',textColor: 'hsl(224 10% 20%)', pdfFillColor: '#E5E7EB', pdfTextColor: '#1F2937' }
 };
