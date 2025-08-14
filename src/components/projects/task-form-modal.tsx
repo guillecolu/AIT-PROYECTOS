@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Save, Paperclip, X } from 'lucide-react';
+import { CalendarIcon, Save } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,7 @@ const taskSchema = z.object({
 interface TaskFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Omit<Task, 'id'> | Task, attachment?: File) => void;
+  onSave: (data: Omit<Task, 'id'> | Task) => void;
   task: Task | null;
   users: User[];
   projects: Project[];

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -128,7 +129,7 @@ function SignatureHistory({ history, users }: { history: Signature[], users: Use
 }
 
 
-function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>, attachment?: File) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
+function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
     
@@ -166,8 +167,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
         setIsTaskModalOpen(true);
     }
 
-    const handleSaveTask = (taskData: Omit<Task, 'id'> | Task, attachment?: File) => {
-        onTaskUpdate(taskData, attachment);
+    const handleSaveTask = (taskData: Omit<Task, 'id'> | Task) => {
+        onTaskUpdate(taskData);
     };
     
     const handleAddCustomStage = () => {
@@ -616,7 +617,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         setIsDescriptionModalOpen(true);
     };
 
-    const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>, attachment?: File) => {
+    const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>) => {
         // Optimistically update UI
         if ('id' in updatedTaskData) {
             setInternalTasks(prevTasks => prevTasks.map(t => t.id === updatedTaskData.id ? { ...t, ...updatedTaskData } : t));
@@ -625,7 +626,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             setInternalTasks(prevTasks => [...prevTasks, newTask]);
         }
         
-        await saveTask(updatedTaskData, attachment);
+        await saveTask(updatedTaskData);
         
         // After DB save, get the latest project state
         const updatedProject = await saveProject(internalProject); // This might be redundant if saveTask returns it
