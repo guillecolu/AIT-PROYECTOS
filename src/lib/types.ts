@@ -144,6 +144,7 @@ export interface CommonTask {
     title: string;
     description: string;
     estimatedTime: number;
+    component: TaskComponent;
 }
 
 export interface DailySummary {

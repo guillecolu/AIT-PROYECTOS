@@ -189,7 +189,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }, [commonDepartments]);
   
   const saveCommonTask = useCallback(async (task: CommonTask) => {
-    if (commonTasks.find(t => t.title === task.title)) return;
+    if (commonTasks.find(t => t.title.toLowerCase() === task.title.toLowerCase() && t.component === task.component)) return;
     const newDocRef = doc(collection(db, "commonTasks"), task.id);
     await setDoc(newDocRef, task);
     setCommonTasks(prev => [...prev, task]);
@@ -344,19 +344,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProject = async (projectId: string) => {
-    await deleteDoc(doc(db, "projects", projectId));
-    setProjects(prev => prev.filter(p => p.id !== projectId));
-    
+    const batch = writeBatch(db);
+
+    const projectRef = doc(db, "projects", projectId);
+    batch.delete(projectRef);
+
     const tasksCollectionRef = collection(db, "tasks");
     const tasksToDeleteSnapshot = await getDocs(tasksCollectionRef);
     const tasksToDelete = tasksToDeleteSnapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Task))
       .filter(t => t.projectId === projectId);
       
-    const batch = writeBatch(db);
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
     await batch.commit();
 
+    setProjects(prev => prev.filter(p => p.id !== projectId));
     setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
   

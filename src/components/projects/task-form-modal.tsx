@@ -7,11 +7,11 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Task, User, TaskStatus, TaskComponent, TaskPriority, Project, Part, CommonTask, TaskComment } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -140,8 +140,14 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
   
     const handleSaveAsCommonTask = () => {
         const values = form.getValues();
+        const component = task ? task.component : defaultComponent;
+
         if (!values.title) {
             toast({ variant: "destructive", title: "El título es obligatorio para guardar una tarea común." });
+            return;
+        }
+        if (!component) {
+             toast({ variant: "destructive", title: "Se requiere un área para guardar la tarea común." });
             return;
         }
         const commonTask: CommonTask = {
@@ -149,6 +155,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
             title: values.title,
             description: values.description || '',
             estimatedTime: values.estimatedTime,
+            component: component,
         };
         saveCommonTask(commonTask);
         toast({ title: "Tarea guardada", description: `"${values.title}" se ha añadido a tus tareas comunes.`});
@@ -181,6 +188,17 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     }
     
     const partsForSelectedProject = projects.find(p => p.id === selectedProjectId)?.parts || [];
+
+    const groupedCommonTasks = useMemo(() => {
+        return commonTasks.reduce((acc, task) => {
+            const component = task.component || 'General';
+            if (!acc[component]) {
+                acc[component] = [];
+            }
+            acc[component].push(task);
+            return acc;
+        }, {} as Record<string, CommonTask[]>);
+    }, [commonTasks]);
     
 
   return (
@@ -216,18 +234,25 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                                     <SelectValue placeholder="Seleccionar para autocompletar..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {commonTasks.map(ct => (
-                                        <div key={ct.id} className="flex items-center justify-between pr-2 group">
-                                            <SelectItem value={ct.id} className="flex-grow">{ct.title}</SelectItem>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
-                                                onClick={(e) => handleDeleteClick(e, ct)}
-                                            >
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </div>
+                                    {Object.entries(groupedCommonTasks).map(([component, tasks]) => (
+                                        <SelectGroup key={component}>
+                                            <SelectLabel>{component}</SelectLabel>
+                                            {tasks.map(ct => (
+                                                <div key={ct.id} className="flex items-center justify-between pr-2 group">
+                                                    <SelectItem value={ct.id} className="flex-grow">
+                                                        {ct.title} <span className="text-muted-foreground ml-2">({ct.estimatedTime}h)</span>
+                                                    </SelectItem>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                                                        onClick={(e) => handleDeleteClick(e, ct)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </SelectGroup>
                                     ))}
                                     <SelectSeparator />
                                     <SelectItem value="__add_new__">
