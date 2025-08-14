@@ -647,7 +647,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const updatedTask: Task = {
             ...task,
             status: 'en-progreso',
-            progress: 90, // Revert progress to a high-value, but not 100
+            progress: 0, // Revert progress to 0
             finalizedByUserId: undefined,
             finalizedAt: undefined,
         };
