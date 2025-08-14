@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectSeparator } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { Task, User, TaskStatus, TaskComponent, TaskPriority, Project, Part, CommonTask, TaskComment } from '@/lib/types';
@@ -16,11 +16,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Save } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+
 
 const taskSchema = z.object({
   title: z.string().min(1, 'El título es obligatorio.'),
@@ -56,6 +58,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const [isAddCommonTaskOpen, setIsAddCommonTaskOpen] = useState(false);
 
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema),
@@ -148,10 +151,15 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         };
         saveCommonTask(commonTask);
         toast({ title: "Tarea guardada", description: `"${values.title}" se ha añadido a tus tareas comunes.`});
+        setIsAddCommonTaskOpen(false);
     };
 
-    const handlePrefillFromCommonTask = (commonTaskId: string) => {
-        const selectedCommonTask = commonTasks.find(ct => ct.id === commonTaskId);
+    const handlePrefillFromCommonTask = (value: string) => {
+        if (value === '__add_new__') {
+            setIsAddCommonTaskOpen(true);
+            return;
+        }
+        const selectedCommonTask = commonTasks.find(ct => ct.id === value);
         if (selectedCommonTask) {
             form.setValue('title', selectedCommonTask.title);
             form.setValue('description', selectedCommonTask.description);
@@ -163,6 +171,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
@@ -173,21 +182,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                 {/* Columna Izquierda */}
                 <div className="space-y-6">
-                    {commonTasks.length > 0 && (
-                         <FormItem>
-                            <FormLabel>Tareas Comunes (Opcional)</FormLabel>
-                             <Select onValueChange={handlePrefillFromCommonTask}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar para autocompletar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {commonTasks.map(ct => (
-                                        <SelectItem key={ct.id} value={ct.id}>{ct.title}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </FormItem>
-                    )}
                     <FormField
                     control={form.control}
                     name="title"
@@ -201,6 +195,28 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                         </FormItem>
                     )}
                     />
+                     {commonTasks.length > 0 && (
+                         <FormItem>
+                            <FormLabel>Tareas Comunes (Opcional)</FormLabel>
+                             <Select onValueChange={handlePrefillFromCommonTask}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar para autocompletar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {commonTasks.map(ct => (
+                                        <SelectItem key={ct.id} value={ct.id}>{ct.title}</SelectItem>
+                                    ))}
+                                    <SelectSeparator />
+                                    <SelectItem value="__add_new__">
+                                        <span className="flex items-center gap-2">
+                                            <PlusCircle className="h-4 w-4" />
+                                            Añadir tarea común...
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </FormItem>
+                    )}
                     <FormField
                     control={form.control}
                     name="description"
@@ -428,19 +444,29 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                     </div>
                 </div>
              </div>
-            <DialogFooter className="pt-8 flex justify-between w-full">
-              <Button type="button" variant="secondary" onClick={handleSaveAsCommonTask}>
-                <Save className="mr-2 h-4 w-4" />
-                Guardar como tarea común
-              </Button>
-              <div className="flex gap-2">
+            <DialogFooter className="pt-8">
                 <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
                 <Button type="submit">Guardar Tarea</Button>
-              </div>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={isAddCommonTaskOpen} onOpenChange={setIsAddCommonTaskOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Guardar como Tarea Común</AlertDialogTitle>
+                <AlertDialogDescription>
+                    La tarea actual se guardará como una plantilla para poder reutilizarla. Solo se guardará el título, la descripción y el tiempo estimado.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSaveAsCommonTask}>Guardar Tarea Común</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
