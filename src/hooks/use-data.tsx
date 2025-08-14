@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -37,6 +36,7 @@ interface DataContextProps {
   saveCommonTask: (task: CommonTask) => void;
   deleteCommonTask: (taskId: string) => Promise<void>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
+  uploadFile: (file: File, path: string, onProgress?: (progress: number) => void) => Promise<string>;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
 }
@@ -133,7 +133,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const proximas = projectTasks.filter(t => {
                 if (!t.deadline || isDone(t)) return false;
                 const deadlineDate = new Date(t.deadline);
-                return deadlineDate > finalHoy && deadlineDate <= proximasLimite;
+                return deadlineDate >= finalHoy && deadlineDate <= proximasLimite && !isDone(t);
             });
           const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
           const bloqueadas = projectTasks.filter(t => t.blocked === true);
@@ -195,7 +195,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }, [commonDepartments]);
   
   const saveCommonTask = useCallback(async (task: CommonTask) => {
-    if (commonTasks.find(t => t.title.toLowerCase() === task.title.toLowerCase() && t.component === task.component)) return;
+    const taskExists = commonTasks.some(t => 
+        t.title.toLowerCase() === task.title.toLowerCase() && 
+        t.component.toLowerCase() === task.component.toLowerCase()
+    );
+    if (taskExists) return;
+
     const newDocRef = doc(collection(db, "commonTasks"), task.id);
     await setDoc(newDocRef, task);
     setCommonTasks(prev => [...prev, task]);
@@ -355,13 +360,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const projectRef = doc(db, "projects", projectId);
     batch.delete(projectRef);
 
-    const tasksCollectionRef = collection(db, "tasks");
-    const tasksToDeleteSnapshot = await getDocs(tasksCollectionRef);
-    const tasksToDelete = tasksToDeleteSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Task))
-      .filter(t => t.projectId === projectId);
-      
+    const tasksToDelete = tasks.filter(t => t.projectId === projectId);
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
+      
     await batch.commit();
 
     setProjects(prev => prev.filter(p => p.id !== projectId));
@@ -512,6 +513,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     saveCommonTask,
     deleteCommonTask,
     saveAppConfig,
+    uploadFile,
     setProjects,
     setUsers,
   };
@@ -539,5 +541,7 @@ export const useData = () => {
 
     
 
+
+    
 
     
