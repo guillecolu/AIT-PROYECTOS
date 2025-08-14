@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -82,6 +83,45 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     });
   }
 
+  const recalculateProjectProgress = useCallback((projectId: string, allTasks: Task[]) => {
+    let project = projects.find(p => p.id === projectId);
+    if (!project) return;
+  
+    // Create a deep copy to avoid direct mutation
+    let projectToUpdate = JSON.parse(JSON.stringify(project));
+  
+    const projectTasks = allTasks.filter(t => t.projectId === projectId);
+  
+    const updatedParts = (projectToUpdate.parts || []).map((part: Part) => {
+      const partTasks = projectTasks.filter(t => t.partId === part.id);
+      let newPartProgress = 0;
+      if (partTasks.length > 0) {
+        const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
+        newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
+      }
+      return { ...part, progress: newPartProgress };
+    });
+  
+    let newProjectProgress = 0;
+    if (updatedParts.length > 0) {
+      const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
+      newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
+    }
+  
+    if (projectToUpdate.progress !== newProjectProgress) {
+        projectToUpdate = { ...projectToUpdate, parts: updatedParts, progress: newProjectProgress };
+        
+        setProjects(currentProjects => currentProjects.map(p => p.id === projectId ? projectToUpdate : p));
+        
+        const projectForDb = JSON.parse(JSON.stringify(projectToUpdate));
+        // We only save the project, not the tasks, as they are saved separately
+        setDoc(doc(db, "projects", projectId), projectForDb);
+    }
+
+    return projectToUpdate;
+  }, [projects]);
+  
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -159,7 +199,27 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                   ...bloqueadas.map(t => ({type: "BLOQUEADA", taskId: t.id} as AlertItem)),
               ]
           };
-          return { ...project, alerts };
+          
+          // Recalculate progress based on fetched tasks
+          const projectTasksForProgress = tasksData.filter(t => t.projectId === project.id);
+          const updatedParts = (project.parts || []).map((part: Part) => {
+            const partTasks = projectTasksForProgress.filter(t => t.partId === part.id);
+            let newPartProgress = 0;
+            if (partTasks.length > 0) {
+                const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
+                newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
+            }
+            return { ...part, progress: newPartProgress };
+          });
+
+          let newProjectProgress = 0;
+            if (updatedParts.length > 0) {
+                const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
+                newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
+            }
+
+
+          return { ...project, alerts, parts: updatedParts, progress: newProjectProgress };
       });
 
 
@@ -306,43 +366,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const getTasksByProjectId = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
   const getUsers = useCallback(() => users, [users]);
 
-  const recalculateProjectProgress = useCallback((projectId: string, allTasks: Task[]) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-
-    const projectTasks = allTasks.filter(t => t.projectId === projectId);
-    
-    // Create a deep copy to avoid direct mutation
-    let projectToUpdate = JSON.parse(JSON.stringify(project));
-
-    const updatedParts = (projectToUpdate.parts || []).map((part: Part) => {
-        const partTasks = projectTasks.filter(t => t.partId === part.id);
-        
-        let newPartProgress = 0;
-        if (partTasks.length > 0) {
-            const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
-            newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
-        }
-        
-        return { ...part, progress: newPartProgress };
-    });
-
-    let newProjectProgress = 0;
-    if (updatedParts.length > 0) {
-        const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
-        newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
-    }
-    
-    const updatedProject = { ...projectToUpdate, parts: updatedParts, progress: newProjectProgress };
-    
-    setProjects(currentProjects => currentProjects.map(p => p.id === projectId ? updatedProject : p));
-    
-    // Save the updated project to Firestore
-    const projectForDb = JSON.parse(JSON.stringify(updatedProject));
-    setDoc(doc(db, "projects", projectId), projectForDb);
-}, [projects]);
-
-
   const saveProject = async (projectData: Omit<Project, 'id'> | Project): Promise<Project> => {
     let updatedProject: Project;
     if ('id' in projectData) {
@@ -383,31 +406,20 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     if ('id' in taskData) {
         updatedTask = { ...taskData };
-        setTasks(currentTasks => {
-            const taskIndex = currentTasks.findIndex(t => t.id === updatedTask.id);
-            if (taskIndex > -1) {
-                newTasks = [...currentTasks];
-                newTasks[taskIndex] = updatedTask;
-            } else {
-                newTasks = [...currentTasks, updatedTask];
-            }
-            // Trigger project progress recalculation after tasks state is updated
-            recalculateProjectProgress(updatedTask.projectId, newTasks);
-            return newTasks;
-        });
+        newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
     } else {
         const newId = doc(collection(db, "tasks")).id;
         updatedTask = { ...taskData, id: newId } as Task;
-        setTasks(currentTasks => {
-            newTasks = [...currentTasks, updatedTask];
-            // Trigger project progress recalculation
-            recalculateProjectProgress(updatedTask.projectId, newTasks);
-            return newTasks;
-        });
+        newTasks = [...tasks, updatedTask];
     }
     
+    setTasks(newTasks);
+
     const taskForDb = JSON.parse(JSON.stringify(updatedTask));
     await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
+
+    // After task is saved, recalculate project progress.
+    recalculateProjectProgress(updatedTask.projectId, newTasks);
 
     return updatedTask;
   };
@@ -418,11 +430,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     await deleteDoc(doc(db, "tasks", taskId));
 
-    setTasks(currentTasks => {
-        const newTasks = currentTasks.filter(t => t.id !== taskId);
-        recalculateProjectProgress(taskToDelete.projectId, newTasks);
-        return newTasks;
-    });
+    const newTasks = tasks.filter(t => t.id !== taskId);
+    setTasks(newTasks);
+    recalculateProjectProgress(taskToDelete.projectId, newTasks);
   };
 
   const saveUser = async (user: Omit<User, 'id'> | User): Promise<User> => {
@@ -540,4 +550,5 @@ export const useData = () => {
     
 
     
+
 

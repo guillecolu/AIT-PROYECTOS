@@ -612,16 +612,16 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
 
     const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>) => {
+        // Optimistic update
         if ('id' in updatedTaskData) {
             setInternalTasks(prevTasks => prevTasks.map(t => t.id === updatedTaskData.id ? { ...t, ...updatedTaskData } : t));
         } else {
-            const newTask = { ...updatedTaskData, id: crypto.randomUUID() } as Task;
-            setInternalTasks(prevTasks => [...prevTasks, newTask]);
+            // For new tasks, we'll wait for saveTask to return the full task with ID
         }
         
         await saveTask(updatedTaskData);
         
-        // This will trigger a re-fetch or re-calculation in useData hook
+        // This will trigger a re-fetch or re-calculation in useData hook, which updates projects
         const latestProjectState = projects.find(p => p.id === initialProject.id);
         if (latestProjectState) {
           setInternalProject(latestProjectState);
@@ -1089,3 +1089,4 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
 }
 
     
+
