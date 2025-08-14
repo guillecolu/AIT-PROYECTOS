@@ -34,7 +34,6 @@ const taskSchema = z.object({
   priority: z.enum(['Baja', 'Media', 'Alta']),
   deadline: z.date({ required_error: 'La fecha límite es obligatoria.'}),
   progress: z.coerce.number().min(0).max(100, 'El progreso debe estar entre 0 y 100.'),
-  attachment: z.instanceof(File).optional(),
 });
 
 interface TaskFormModalProps {
@@ -56,7 +55,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
   const { saveCommonTask } = useData();
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [attachmentName, setAttachmentName] = useState<string | null>(task?.attachmentName || null);
   const isMobile = useIsMobile();
 
   const form = useForm<z.infer<typeof taskSchema>>({
@@ -82,7 +80,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
 
       const partsForProject = projects.find(p => p.id === initialProjectId)?.parts || [];
       
-      setAttachmentName(task?.attachmentName || null);
 
       if (task) {
         form.reset({
@@ -123,7 +120,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         return;
     }
 
-    const { attachment, ...taskData } = data;
+    const { ...taskData } = data;
 
     let finalTaskData: Omit<Task, 'id'> | Task;
 
@@ -133,7 +130,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         finalTaskData = { ...taskData, deadline: data.deadline.toISOString(), component } as Omit<Task, 'id'> & { component: TaskComponent };
     }
 
-    onSave(finalTaskData, attachment);
+    onSave(finalTaskData);
     onClose();
   };
   
@@ -164,13 +161,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     
     const partsForSelectedProject = projects.find(p => p.id === selectedProjectId)?.parts || [];
     
-    const handleRemoveAttachment = () => {
-        form.setValue('attachment', undefined);
-        setAttachmentName(null);
-        if (task) {
-            onSave({ ...task, attachmentURL: '', attachmentName: '' });
-        }
-    }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -436,38 +426,6 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                             )}
                         />
                     </div>
-                     <FormField
-                        control={form.control}
-                        name="attachment"
-                        render={({ field: { value, onChange, ...fieldProps } }) => (
-                            <FormItem>
-                                <FormLabel>Adjuntar Archivo</FormLabel>
-                                {attachmentName ? (
-                                    <div className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded-md">
-                                        <Paperclip className="h-4 w-4 text-muted-foreground"/>
-                                        <span className="flex-grow truncate">{attachmentName}</span>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemoveAttachment}>
-                                            <X className="h-4 w-4"/>
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <FormControl>
-                                        <Input 
-                                            type="file" 
-                                            {...fieldProps}
-                                            onChange={(event) => {
-                                                const file = event.target.files?.[0];
-                                                onChange(file);
-                                                setAttachmentName(file?.name || null);
-                                            }}
-                                            className="pt-2"
-                                        />
-                                    </FormControl>
-                                )}
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                 </div>
              </div>
             <DialogFooter className="pt-8 flex justify-between w-full">
@@ -486,5 +444,3 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     </Dialog>
   );
 }
-
-    
