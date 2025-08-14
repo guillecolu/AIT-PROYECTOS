@@ -891,7 +891,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                          <div className="flex items-center gap-2">
                              <Button onClick={handleGenerateDailySummary} disabled={isGeneratingSummary}>
                                 {isGeneratingSummary ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
-                                Resumen Diario IA
+                                Resumen Diario
                             </Button>
                              <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
                                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
@@ -1046,7 +1046,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
                 <AlertDialogContent className="sm:max-w-2xl">
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Resumen Diario Generado por IA</AlertDialogTitle>
+                    <AlertDialogTitle>Resumen Diario</AlertDialogTitle>
                     <AlertDialogDescription>
                         Estas son las recomendaciones y prioridades para el proyecto <strong>{internalProject.name}</strong> para hoy.
                     </AlertDialogDescription>

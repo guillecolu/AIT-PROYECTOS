@@ -1,5 +1,4 @@
 'use server';
-// This file is machine-generated - edit with caution!
 
 /**
  * @fileOverview A flow to generate a daily summary and task prioritization for a project.
@@ -24,7 +23,7 @@ const dailySummaryPrompt = ai.definePrompt({
   name: 'dailySummaryPrompt',
   input: {schema: DailySummaryInputSchema},
   output: {schema: DailySummaryOutputSchema},
-  prompt: `Eres un asistente de jefe de proyecto experto en la industria del metal. Tu objetivo es generar un resumen diario claro y accionable para el proyecto "{{projectName}}".
+  prompt: `Eres un asistente de jefe de proyecto experto en la industria del metal. Tu objetivo es generar un resumen diario claro, profesional y accionable para el proyecto "{{projectName}}". El formato debe ser texto plano, sin asteriscos ni caracteres de formato Markdown.
 
 Analiza la siguiente lista de tareas pendientes. La fecha de hoy es {{currentDate}}.
 
@@ -32,27 +31,26 @@ Analiza la siguiente lista de tareas pendientes. La fecha de hoy es {{currentDat
 - Tarea: "{{title}}" (Prioridad: {{priority}}) asignada a {{assignedToName}}. Vence el {{deadline}}. Estado: {{status}}.
 {{/each}}
 
-Basado en estos datos, crea un resumen que incluya:
-1.  **Prioridades Clave para Hoy**: Identifica 2-3 tareas críticas que necesitan atención inmediata. Considera las fechas de vencimiento más próximas y las tareas con prioridad 'Alta'. Menciona el responsable y cuántos días quedan.
-2.  **Vigilancia de Plazos**: Lista las tareas que vencen en los próximos 3 días.
-3.  **Recomendación General**: Ofrece una recomendación breve sobre el enfoque del día, como "centrarse en desbloquear tareas pendientes" o "asegurar que las tareas de alta prioridad avancen".
+Basado en estos datos, crea un resumen que siga ESTRICTAMENTE el siguiente formato. No añadas símbolos, guiones o cualquier otro formato que no esté especificado aquí.
 
-Usa un formato de texto plano con listas (usando guiones). Sé directo y conciso.
+Resumen Diario – {{projectName}}
+Fecha: {{currentDate}}
 
-Ejemplo de formato:
+Prioridades Clave para Hoy:
+{{{keyPriorities}}}
 
-**Resumen Diario – {{projectName}}**
+Tareas con Plazo Cercano (Próximos 3 días):
+{{{upcomingDeadlines}}}
 
-**Prioridades Clave para Hoy:**
-- La tarea "Diseñar el soporte principal" (Juan Pérez) es crítica. Vence en 2 días.
-- Avanzar en "Soldar la base" (Ana García), prioridad Alta.
+Recomendación del Día:
+{{{recommendation}}}
 
-**Vigilancia de Plazos (Próximos 3 días):**
-- "Montar el panel eléctrico" (Carlos López) vence mañana.
-- "Realizar pruebas iniciales" (Sofía Martín) vence en 3 días.
+**Instrucciones para generar el contenido de cada sección**:
+1.  **keyPriorities**: Identifica 2-3 tareas críticas. Usa un formato numérico (1., 2., 3.). Describe la tarea, el responsable y los días restantes. Ejemplo: "1. Diseñar el soporte principal – (Juan Pérez) – Vence en 2 días". Si no hay, responde "Ninguna por el momento.".
+2.  **upcomingDeadlines**: Lista tareas que vencen en los próximos 3 días. Usa un guion (-) para cada una. Ejemplo: "- Montar el panel eléctrico – (Carlos López) – Vence mañana". Si no hay, responde "Ninguna por el momento.".
+3.  **recommendation**: Ofrece una recomendación breve y directa sobre el enfoque del día. Ejemplo: "Asegurar que las tareas con vencimiento próximo se completen hoy para evitar retrasos en cascada.". Si no hay una recomendación clara, responde "Mantener el buen ritmo y comunicar cualquier bloqueo.".
 
-**Recomendación:**
-Asegurar que las tareas con vencimiento próximo se completen hoy para evitar retrasos en cascada.
+El resultado debe ser un texto coherente y legible con saltos de línea claros entre secciones.
 `,
 });
 
@@ -63,7 +61,7 @@ const generateDailySummaryFlow = ai.defineFlow(
     outputSchema: DailySummaryOutputSchema,
   },
   async (input) => {
-    const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const {output} = await dailySummaryPrompt({...input, currentDate});
     return output!;
   }
