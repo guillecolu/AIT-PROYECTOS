@@ -129,14 +129,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
           const isDone = (task: Task) => task.status === 'finalizada';
 
-          const atrasadas = projectTasks.filter(t => t.deadline && isBefore(new Date(t.deadline), comienzoHoy) && !isDone(t));
+          const atrasadas = projectTasks.filter(t => {
+            if (isDone(t) || !t.deadline) return false;
+            return isBefore(new Date(t.deadline), comienzoHoy);
+          });
+          
           const proximas = projectTasks.filter(t => {
-                if (!t.deadline || isDone(t)) return false;
-                const deadlineDate = new Date(t.deadline);
-                return deadlineDate >= finalHoy && deadlineDate <= proximasLimite && !isDone(t);
-            });
+            if (isDone(t) || !t.deadline) return false;
+            const deadlineDate = new Date(t.deadline);
+            return deadlineDate >= comienzoHoy && deadlineDate <= proximasLimite;
+          });
+
           const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
-          const bloqueadas = projectTasks.filter(t => t.blocked === true);
+          const bloqueadas = projectTasks.filter(t => t.blocked === true && !isDone(t));
 
           const alerts: ProjectAlerts = {
               id: hoy.toISOString().split('T')[0].replace(/-/g, ''),
@@ -235,7 +240,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         const currentUser = users.find(u => u.role === "Admin") || users[0];
         if (!currentUser) throw new Error("User not found.");
         
-        const safeName = file.name.replace(/[^\w.\-]/g, "_");
+        const safeName = file.name.replace(/[^\\w.\\-]/g, "_");
         const path = `uploads/projects/${projectId}/${partId}/${Date.now()}_${safeName}`;
 
         try {
