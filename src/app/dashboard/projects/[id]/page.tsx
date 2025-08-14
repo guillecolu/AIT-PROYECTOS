@@ -9,18 +9,20 @@ export default function ProjectDetailPage() {
     const projectId = params.id as string;
     const { getProjectById, getTasksByProjectId, getUsers, loading } = useData();
     
+    // While loading, we can't know if the project exists yet.
+    if (loading) {
+        return <div className="flex items-center justify-center p-20">Cargando...</div>;
+    }
+
+    // After loading, we can safely check for the project.
     const project = getProjectById(projectId);
     const tasks = getTasksByProjectId(projectId);
     const users = getUsers();
-    
-    if (loading) {
-        return <div>Cargando...</div>;
-    }
 
+    // If loading is finished and still no project, then it's a 404.
     if (!project) {
-        // Wait for loading to finish before showing not found
-        if (!loading) notFound();
-        return null; // Or a dedicated loading skeleton
+        notFound();
+        return null; // notFound() throws an error, so this is for type safety.
     }
 
     return <ProjectDetailsClient project={project} tasks={tasks} users={users} />;
