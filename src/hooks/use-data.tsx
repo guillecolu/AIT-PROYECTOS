@@ -83,8 +83,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     });
   }
 
-  const recalculateProjectProgress = useCallback((projectId: string, allTasks: Task[]) => {
-    let project = projects.find(p => p.id === projectId);
+  const recalculateProjectProgress = (projectId: string, allTasks: Task[]) => {
+    const project = projects.find(p => p.id === projectId);
     if (!project) return;
   
     // Create a deep copy to avoid direct mutation
@@ -112,14 +112,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         projectToUpdate = { ...projectToUpdate, parts: updatedParts, progress: newProjectProgress };
         
         setProjects(currentProjects => currentProjects.map(p => p.id === projectId ? projectToUpdate : p));
-        
-        const projectForDb = JSON.parse(JSON.stringify(projectToUpdate));
-        // We only save the project, not the tasks, as they are saved separately
-        setDoc(doc(db, "projects", projectId), projectForDb);
     }
-
-    return projectToUpdate;
-  }, [projects]);
+  };
   
 
   const fetchData = useCallback(async () => {
@@ -164,7 +158,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
           const hoy = new Date();
           const comienzoHoy = startOfDay(hoy);
-          const proximasLimite = addDays(comienzoHoy, 3);
+          const proximasLimite = addDays(comienzoHoy, 1);
 
           const isDone = (task: Task) => task.status === 'finalizada';
 
@@ -402,24 +396,26 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   
   const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
     let updatedTask: Task;
-    let newTasks: Task[];
 
     if ('id' in taskData) {
         updatedTask = { ...taskData };
-        newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
     } else {
         const newId = doc(collection(db, "tasks")).id;
         updatedTask = { ...taskData, id: newId } as Task;
-        newTasks = [...tasks, updatedTask];
     }
     
-    setTasks(newTasks);
-
     const taskForDb = JSON.parse(JSON.stringify(updatedTask));
     await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
 
-    // After task is saved, recalculate project progress.
-    recalculateProjectProgress(updatedTask.projectId, newTasks);
+    setTasks(currentTasks => {
+        const index = currentTasks.findIndex(t => t.id === updatedTask.id);
+        if (index > -1) {
+            const newTasks = [...currentTasks];
+            newTasks[index] = updatedTask;
+            return newTasks;
+        }
+        return [...currentTasks, updatedTask];
+    });
 
     return updatedTask;
   };
@@ -552,3 +548,6 @@ export const useData = () => {
     
 
 
+
+
+    
