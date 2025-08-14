@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit } from 'lucide-react';
+import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit, Play, Pause } from 'lucide-react';
 import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -309,17 +309,17 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                                     ))}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
-                                                            <Select onValueChange={(value: TaskStatus) => handleStatusChange(task, value)} value={task.status}>
-                                                                <SelectTrigger className={cn("capitalize border-0 w-40", statusColorClasses[task.status])}>
-                                                                    <SelectValue placeholder="Seleccionar estado" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                                                                    <SelectItem value="en-progreso">En Progreso</SelectItem>
-                                                                    <SelectItem value="para-soldar">Para Soldar</SelectItem>
-                                                                    <SelectItem value="montada">Montada</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
+                                                             {task.status === 'pendiente' ? (
+                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'en-progreso')}>
+                                                                    <Play className="h-4 w-4 mr-2 text-yellow-600" />
+                                                                    Pendiente
+                                                                </Button>
+                                                            ) : (
+                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'pendiente')}>
+                                                                    <Pause className="h-4 w-4 mr-2 text-blue-600" />
+                                                                    En Progreso
+                                                                </Button>
+                                                            )}
                                                         </>
                                                     )}
                                                      <SignatureHistory history={task.signatureHistory || []} users={users} />
