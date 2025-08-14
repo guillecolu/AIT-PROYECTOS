@@ -5,7 +5,6 @@ import autoTable from "jspdf-autotable";
 import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Project, Task, User, Part } from './types';
-import qrcode from 'qrcode';
 
 
 // Extend jsPDF with autoTable
@@ -27,6 +26,8 @@ const areaColors: Record<string, { fillColor: string; textColor: string }> = {
 };
 
 export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null) => {
+    const qrcode = (await import('qrcode')).default;
+    
     const doc = new jsPDF({
         orientation: 'p',
         unit: 'mm',
