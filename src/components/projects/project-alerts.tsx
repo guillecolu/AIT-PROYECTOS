@@ -39,7 +39,7 @@ const alertConfig = {
         label: "Vencen Pronto",
         icon: Clock,
         color: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200",
-        description: "Tareas que vencen en los próximos 3 días."
+        description: "Tareas que vencen hoy o mañana y no están finalizadas."
     },
     sinAsignar: {
         label: "Sin Asignar",
@@ -87,11 +87,11 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
     const getFilteredTasks = () => {
         if (!selectedAlertType) return [];
         
+        const isDone = (task: Task) => task.status === 'finalizada';
         const hoy = new Date();
         const comienzoHoy = startOfDay(hoy);
-        const finalHoy = endOfDay(hoy);
-        const proximasLimite = addDays(comienzoHoy, 1);
-        const isDone = (task: Task) => task.status === 'finalizada';
+        const finalManana = endOfDay(addDays(hoy, 1));
+
 
         switch(selectedAlertType) {
             case 'atrasadas':
@@ -100,7 +100,7 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
                  return tasks.filter(t => {
                     if (!t.deadline || isDone(t)) return false;
                     const deadlineDate = new Date(t.deadline);
-                    return deadlineDate > finalHoy && deadlineDate <= proximasLimite;
+                    return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
                 });
             case 'sinAsignar':
                 return tasks.filter(t => !t.assignedToId && !isDone(t));

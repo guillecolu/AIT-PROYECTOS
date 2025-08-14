@@ -8,7 +8,7 @@ import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
-import { startOfDay, addDays, isBefore, endOfDay } from 'date-fns';
+import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
 
 interface DataContextProps {
   projects: Project[];
@@ -83,39 +83,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     });
   }
 
-  const recalculateProjectProgress = (projectId: string, allTasks: Task[]) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-  
-    // Create a deep copy to avoid direct mutation
-    let projectToUpdate = JSON.parse(JSON.stringify(project));
-  
-    const projectTasks = allTasks.filter(t => t.projectId === projectId);
-  
-    const updatedParts = (projectToUpdate.parts || []).map((part: Part) => {
-      const partTasks = projectTasks.filter(t => t.partId === part.id);
-      let newPartProgress = 0;
-      if (partTasks.length > 0) {
-        const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
-        newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
-      }
-      return { ...part, progress: newPartProgress };
-    });
-  
-    let newProjectProgress = 0;
-    if (updatedParts.length > 0) {
-      const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
-      newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
-    }
-  
-    if (projectToUpdate.progress !== newProjectProgress) {
-        projectToUpdate = { ...projectToUpdate, parts: updatedParts, progress: newProjectProgress };
-        
-        setProjects(currentProjects => currentProjects.map(p => p.id === projectId ? projectToUpdate : p));
-    }
-  };
-  
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -156,11 +123,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Simulate backend alert generation for each project
       projectsData = projectsData.map(project => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
+          const isDone = (task: Task) => task.status === 'finalizada';
           const hoy = new Date();
           const comienzoHoy = startOfDay(hoy);
-          const proximasLimite = addDays(comienzoHoy, 1);
+          const finalManana = endOfDay(addDays(hoy, 1));
 
-          const isDone = (task: Task) => task.status === 'finalizada';
 
           const atrasadas = projectTasks.filter(t => {
             if (isDone(t) || !t.deadline) return false;
@@ -170,7 +137,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const proximas = projectTasks.filter(t => {
             if (isDone(t) || !t.deadline) return false;
             const deadlineDate = new Date(t.deadline);
-            return deadlineDate >= comienzoHoy && deadlineDate <= proximasLimite;
+            return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
           });
 
           const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
@@ -428,7 +395,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const newTasks = tasks.filter(t => t.id !== taskId);
     setTasks(newTasks);
-    recalculateProjectProgress(taskToDelete.projectId, newTasks);
   };
 
   const saveUser = async (user: Omit<User, 'id'> | User): Promise<User> => {
