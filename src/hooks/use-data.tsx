@@ -347,11 +347,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     await deleteDoc(doc(db, "projects", projectId));
     setProjects(prev => prev.filter(p => p.id !== projectId));
     
-    // Also delete associated tasks
-    const tasksToDelete = tasks.filter(t => t.projectId === projectId);
+    const tasksCollectionRef = collection(db, "tasks");
+    const tasksToDeleteSnapshot = await getDocs(tasksCollectionRef);
+    const tasksToDelete = tasksToDeleteSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Task))
+      .filter(t => t.projectId === projectId);
+      
     const batch = writeBatch(db);
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
     await batch.commit();
+
     setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
   
@@ -522,3 +527,6 @@ export const useData = () => {
 
 
 
+
+
+    
