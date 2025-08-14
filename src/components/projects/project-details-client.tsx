@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit } from 'lucide-react';
-import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
+import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -53,7 +53,7 @@ import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
 import type { DailySummaryOutput } from '@/ai/flows/generate-daily-summary.types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
-import { areaColors } from '@/lib/colors';
+import AreaColorPicker from './area-color-picker';
 
 
 const componentIcons: Record<string, React.ReactNode> = {
@@ -136,6 +136,7 @@ function SignatureHistory({ history, users }: { history: Signature[], users: Use
 function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
+    const { areaColors, saveAreaColor } = useData();
     
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -220,7 +221,10 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
             <div className="space-y-8">
                 {partStages.map(stage => {
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
-                    const colors = areaColors[stage.nombre as keyof typeof areaColors] || areaColors.default;
+                    const colors = areaColors?.find(c => c.name === stage.nombre) || areaColors?.find(c => c.name === 'default');
+
+                    if (!colors) return null;
+
                     return (
                         <div key={stage.nombre} className="rounded-lg p-4 space-y-4" style={{ backgroundColor: colors.bgColor, color: colors.textColor }}>
                              <div className="flex items-center justify-between">
@@ -233,11 +237,16 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             label="Nombre del Área"
                                         />
                                     </h3>
+                                    <AreaColorPicker
+                                        areaName={stage.nombre}
+                                        currentColor={colors}
+                                        onSave={saveAreaColor}
+                                    />
                                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor' }}>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor', backgroundColor: 'transparent' }}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Añadir Tarea
                                 </Button>
@@ -245,12 +254,12 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                             <Table className="bg-card/50 rounded-md">
                                 <TableHeader>
                                     <TableRow className="border-b-foreground/10">
-                                        <TableHead style={{ color: colors.textColor }}>Tarea</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Asignado a</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Estado</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Entrega</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Tiempo (Est/Real)</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Acciones</TableHead>
+                                        <TableHead className="text-foreground">Tarea</TableHead>
+                                        <TableHead className="text-foreground">Asignado a</TableHead>
+                                        <TableHead className="text-foreground">Estado</TableHead>
+                                        <TableHead className="text-foreground">Entrega</TableHead>
+                                        <TableHead className="text-foreground">Tiempo (Est/Real)</TableHead>
+                                        <TableHead className="text-foreground">Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -539,7 +548,7 @@ const getContrastingTextColor = (hexcolor?: string): string => {
 }
 
 export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, appConfig } = useData();
+    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, appConfig, areaColors, saveAreaColor } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
@@ -821,7 +830,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const handleGeneratePdf = async () => {
         setIsGeneratingPdf(true);
         try {
-            await generatePendingTasksPdf(internalProject, internalTasks, users, appConfig.logoUrl);
+            await generatePendingTasksPdf(internalProject, internalTasks, users, appConfig.logoUrl, areaColors);
             toast({
                 title: "PDF Generado",
                 description: "El archivo de tareas pendientes se ha descargado.",

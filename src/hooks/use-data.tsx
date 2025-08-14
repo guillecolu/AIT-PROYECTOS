@@ -3,12 +3,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc, onSnapshot, query, Unsubscribe } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
+import { defaultAreaColors } from '@/lib/colors';
 
 interface DataContextProps {
   projects: Project[] | null;
@@ -16,6 +17,7 @@ interface DataContextProps {
   users: User[] | null;
   userRoles: UserRole[] | null;
   appConfig: AppConfig;
+  areaColors: AreaColor[] | null;
   commonDepartments: string[] | null;
   commonTasks: CommonTask[] | null;
   loading: boolean;
@@ -38,6 +40,7 @@ interface DataContextProps {
   deleteCommonTask: (taskId: string) => Promise<void>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
   uploadFile: (file: File, path: string, onProgress?: (progress: number) => void) => Promise<string>;
+  saveAreaColor: (colorData: AreaColor) => Promise<void>;
   setProjects: React.Dispatch<React.SetStateAction<Project[] | null>>;
   setUsers: React.Dispatch<React.SetStateAction<User[] | null>>;
 }
@@ -50,6 +53,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState<User[] | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[] | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig>({ logoUrl: null });
+  const [areaColors, setAreaColors] = useState<AreaColor[] | null>(null);
   const [commonDepartments, setCommonDepartments] = useState<string[] | null>(null);
   const [commonTasks, setCommonTasks] = useState<CommonTask[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,19 +88,30 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    let initialProjectsLoaded = false;
-    let initialTasksLoaded = false;
-    let initialUsersLoaded = false;
-    let initialRolesLoaded = false;
-    let initialConfigLoaded = false;
-    let initialCommonDeptsLoaded = false;
-    let initialCommonTasksLoaded = false;
+    let initialLoads = {
+        projects: false,
+        tasks: false,
+        users: false,
+        userRoles: false,
+        appConfig: false,
+        areaColors: false,
+        commonDepartments: false,
+        commonTasks: false,
+    };
 
     const checkAllDataLoaded = () => {
-        if (initialProjectsLoaded && initialTasksLoaded && initialUsersLoaded && initialRolesLoaded && initialConfigLoaded && initialCommonDeptsLoaded && initialCommonTasksLoaded) {
+        if (Object.values(initialLoads).every(Boolean)) {
             setLoading(false);
         }
     };
+
+    const markLoaded = (key: keyof typeof initialLoads) => {
+        if (!initialLoads[key]) {
+            initialLoads[key] = true;
+            checkAllDataLoaded();
+        }
+    }
+
 
     const processData = (projectsData: Project[] | null, tasksData: Task[] | null) => {
       if (!projectsData || !tasksData) return projectsData;
@@ -133,10 +148,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             setProjects(updatedProjects);
             return currentTasks;
         });
-        if (!initialProjectsLoaded) {
-            initialProjectsLoaded = true;
-            checkAllDataLoaded();
-        }
+        markLoaded('projects');
     }, (error) => console.error("Projects Snapshot Error:", error));
     unsubscribers.push(projectsUnsub);
 
@@ -149,10 +161,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             return currentProjects;
         });
         setTasks(tasksData);
-        if (!initialTasksLoaded) {
-            initialTasksLoaded = true;
-            checkAllDataLoaded();
-        }
+        markLoaded('tasks');
     }, (error) => console.error("Tasks Snapshot Error:", error));
     unsubscribers.push(tasksUnsub);
 
@@ -160,10 +169,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const usersUnsub = onSnapshot(usersQuery, (querySnapshot) => {
         const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
         setUsers(usersData);
-        if (!initialUsersLoaded) {
-            initialUsersLoaded = true;
-            checkAllDataLoaded();
-        }
+        markLoaded('users');
     }, (error) => console.error("Users Snapshot Error:", error));
     unsubscribers.push(usersUnsub);
     
@@ -171,10 +177,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const commonDeptUnsub = onSnapshot(commonDeptQuery, (querySnapshot) => {
         const commonDeptData = querySnapshot.docs.map(doc => doc.data().name);
         setCommonDepartments(commonDeptData);
-         if (!initialCommonDeptsLoaded) {
-            initialCommonDeptsLoaded = true;
-            checkAllDataLoaded();
-        }
+         markLoaded('commonDepartments');
     }, (error) => console.error("Common Depts Snapshot Error:", error));
     unsubscribers.push(commonDeptUnsub);
 
@@ -182,10 +185,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const commonTasksUnsub = onSnapshot(commonTasksQuery, (querySnapshot) => {
         const commonTasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
         setCommonTasks(commonTasksData);
-         if (!initialCommonTasksLoaded) {
-            initialCommonTasksLoaded = true;
-            checkAllDataLoaded();
-        }
+         markLoaded('commonTasks');
     }, (error) => console.error("Common Tasks Snapshot Error:", error));
     unsubscribers.push(commonTasksUnsub);
 
@@ -193,10 +193,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const appConfigUnsub = onSnapshot(appConfigRef, (docSnap) => {
         const appConfigData = docSnap.exists() ? docSnap.data() as AppConfig : { logoUrl: null };
         setAppConfig(appConfigData);
-        if (!initialConfigLoaded) {
-            initialConfigLoaded = true;
-            checkAllDataLoaded();
-        }
+        markLoaded('appConfig');
     }, (error) => console.error("App Config Snapshot Error:", error));
     unsubscribers.push(appConfigUnsub);
 
@@ -216,12 +213,30 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             batch.commit();
         }
         setUserRoles(combinedRoles);
-        if (!initialRolesLoaded) {
-            initialRolesLoaded = true;
-            checkAllDataLoaded();
-        }
+        markLoaded('userRoles');
     }, (error) => console.error("User Roles Snapshot Error:", error));
     unsubscribers.push(userRolesUnsub);
+
+    const areaColorsQuery = query(collection(db, "areaColors"));
+    const areaColorsUnsub = onSnapshot(areaColorsQuery, (querySnapshot) => {
+        if (querySnapshot.empty) {
+            const batch = writeBatch(db);
+            defaultAreaColors.forEach(color => {
+                const docRef = doc(db, "areaColors", color.name);
+                batch.set(docRef, color);
+            });
+            batch.commit().then(() => {
+                setAreaColors(defaultAreaColors);
+                markLoaded('areaColors');
+            });
+        } else {
+            const colorsData = querySnapshot.docs.map(doc => doc.data() as AreaColor);
+            setAreaColors(colorsData);
+            markLoaded('areaColors');
+        }
+    }, (error) => console.error("Area Colors Snapshot Error:", error));
+    unsubscribers.push(areaColorsUnsub);
+
 
     return () => {
         unsubscribers.forEach(unsub => unsub());
@@ -259,7 +274,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addPartToProject = async (projectId: string, partName?: string): Promise<Part | null> => {
-      const project = projects?.find(p => p.id === projectId);
+      if(!projects) return null;
+      const project = projects.find(p => p.id === projectId);
       if (!project) return null;
 
       const newPart: Part = {
@@ -367,12 +383,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteProject = async (projectId: string) => {
+    if (!tasks) return;
     const batch = writeBatch(db);
 
     const projectRef = doc(db, "projects", projectId);
     batch.delete(projectRef);
 
-    const tasksToDelete = tasks?.filter(t => t.projectId === projectId) || [];
+    const tasksToDelete = tasks.filter(t => t.projectId === projectId) || [];
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
       
     await batch.commit();
@@ -443,12 +460,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
   };
 
+  const saveAreaColor = async (colorData: AreaColor) => {
+    const colorRef = doc(db, "areaColors", colorData.name);
+    await setDoc(colorRef, colorData, { merge: true });
+  }
+
   const value: DataContextProps = {
     projects,
     tasks,
     users,
     userRoles,
     appConfig,
+    areaColors,
     commonDepartments,
     commonTasks,
     loading,
@@ -471,6 +494,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     deleteCommonTask,
     saveAppConfig,
     uploadFile,
+    saveAreaColor,
     setProjects,
     setUsers,
   };
@@ -485,33 +509,3 @@ export const useData = () => {
   }
   return context;
 };
-
-    
-
-
-    
-
-
-
-
-
-
-    
-
-
-    
-
-    
-
-
-
-
-    
-
-
-    
-
-
-
-
-    

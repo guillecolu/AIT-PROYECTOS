@@ -99,7 +99,7 @@ export interface Project {
 }
 
 export type TaskStatus = 'pendiente' | 'para-soldar' | 'montada' | 'finalizada' | 'en-progreso';
-export type TaskComponent = 'Estructura' | 'Cableado' | 'Programación' | 'Ensamblaje' | 'Diseño' | 'Corte' | 'Soldadura' | 'Montaje' | 'Pruebas';
+export type TaskComponent = 'Estructura' | 'Cableado' | 'Programación' | 'Ensamblaje' | 'Diseño' | 'Corte' | 'Soldadura' | 'Montaje' | 'Pruebas' | 'Fabricacion' | 'Eléctrico';
 export type TaskPriority = 'Baja' | 'Media' | 'Alta';
 
 export interface Signature {
@@ -149,4 +149,12 @@ export interface CommonTask {
 
 export interface DailySummary {
     summary: string;
+}
+
+export interface AreaColor {
+    name: string;
+    bgColor: string;
+    textColor: string;
+    pdfFillColor: string;
+    pdfTextColor: string;
 }

@@ -1,22 +1,20 @@
 
 
-import type jsPDF from "jspdf";
-import type { UserOptions } from "jspdf-autotable";
 import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Project, Task, User, Part } from './types';
-import { areaColors } from "./colors";
+import type { Project, Task, User, Part, AreaColor } from './types';
 
 // Extend jsPDF with autoTable
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: UserOptions) => jsPDF;
 }
 
-export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null) => {
+export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null, areaColors: AreaColor[] | null) => {
     // Dynamic imports for client-side libraries
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const { default: qrcode } = await import('qrcode');
+    type UserOptions = import('jspdf-autotable').UserOptions;
     
     const doc = new jsPDF({
         orientation: 'p',
@@ -99,6 +97,7 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
 
     let tableBody: any[] = [];
     const priorityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
+    const defaultColor = areaColors?.find(c => c.name === 'default');
     
     Object.keys(groupedTasks).sort().forEach(partName => {
         // Add a group header row for the Part
@@ -115,14 +114,14 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
 
         const depts = groupedTasks[partName];
         Object.keys(depts).sort().forEach(deptName => {
-            const colors = areaColors[deptName as keyof typeof areaColors] || areaColors.default;
+            const colors = areaColors?.find(c => c.name === deptName) || defaultColor;
             // Add a group header row for the Area
             tableBody.push([{
                 content: deptName,
                 colSpan: 8,
                 styles: {
-                    fillColor: colors.pdfFillColor,
-                    textColor: colors.pdfTextColor,
+                    fillColor: colors?.pdfFillColor || '#E5E7EB',
+                    textColor: colors?.pdfTextColor || '#1F2937',
                     fontStyle: 'bold',
                     halign: 'left'
                 }
