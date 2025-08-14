@@ -227,39 +227,37 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
 
                     return (
                         <div key={stage.nombre} className="rounded-lg p-4 space-y-4" style={{ backgroundColor: colors.bgColor, color: colors.textColor }}>
-                             <div className="flex items-center justify-between">
-                                <div className="group flex items-center gap-2">
-                                     <h3 className="font-semibold text-lg flex items-center capitalize" style={{ color: colors.textColor }}>
-                                        {componentIcons[stage.nombre] || <Wrench className="h-4 w-4 mr-2" />}
-                                        <EditableField
-                                            initialValue={stage.nombre}
-                                            onSave={(newName) => onDepartmentNameChange(selectedPart!.id, stage.nombre, newName)}
-                                            label="Nombre del Área"
-                                        />
-                                    </h3>
-                                    <AreaColorPicker
-                                        areaName={stage.nombre}
-                                        currentColor={colors}
-                                        onSave={saveAreaColor}
+                            <div className="group flex items-center gap-2">
+                                <h3 className="font-semibold text-lg flex items-center capitalize" style={{ color: colors.textColor }}>
+                                    {componentIcons[stage.nombre] || <Wrench className="h-4 w-4 mr-2" />}
+                                    <EditableField
+                                        initialValue={stage.nombre}
+                                        onSave={(newName) => onDepartmentNameChange(selectedPart!.id, stage.nombre, newName)}
+                                        label="Nombre del Área"
                                     />
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor', backgroundColor: 'transparent' }}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Añadir Tarea
+                                </h3>
+                                <AreaColorPicker
+                                    areaName={stage.nombre}
+                                    currentColor={colors}
+                                    onSave={saveAreaColor}
+                                />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
+                            <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor', backgroundColor: 'transparent' }}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Añadir Tarea
+                            </Button>
                             <Table className="bg-card/50 rounded-md">
                                 <TableHeader>
                                     <TableRow className="border-b-foreground/10">
-                                        <TableHead className="text-foreground">Tarea</TableHead>
-                                        <TableHead className="text-foreground">Asignado a</TableHead>
-                                        <TableHead className="text-foreground">Estado</TableHead>
-                                        <TableHead className="text-foreground">Entrega</TableHead>
-                                        <TableHead className="text-foreground">Tiempo (Est/Real)</TableHead>
-                                        <TableHead className="text-foreground">Acciones</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Tarea</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Asignado a</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Estado</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Entrega</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Tiempo (Est/Real)</TableHead>
+                                        <TableHead style={{ color: colors.textColor }}>Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
