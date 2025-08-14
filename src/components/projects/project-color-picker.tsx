@@ -9,6 +9,9 @@ import { Palette, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/types';
 import { Label } from '../ui/label';
+import { HexColorPicker } from 'react-colorful';
+import { useDebounce } from '@/hooks/use-debounce';
+
 
 interface ProjectColorPickerProps {
     project: Project;
@@ -18,19 +21,20 @@ interface ProjectColorPickerProps {
 }
 
 export default function ProjectColorPicker({ project, onColorChange, triggerButtonSize = 'icon', triggerClassName }: ProjectColorPickerProps) {
-    const [color, setColor] = useState(project.color || '#D51A1A'); // Default to primary if no color
+    const [color, setColor] = useState(project.color || '#D51A1A');
     const [isOpen, setIsOpen] = useState(false);
+    const debouncedColor = useDebounce(color, 200);
 
     useEffect(() => {
         setColor(project.color || '#D51A1A');
-    }, [project.color]);
-    
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newColor = e.target.value;
-        setColor(newColor);
-        onColorChange(newColor);
-    }
+    }, [project.color, isOpen]);
 
+    useEffect(() => {
+        if (debouncedColor !== project.color) {
+            onColorChange(debouncedColor);
+        }
+    }, [debouncedColor, onColorChange, project.color]);
+    
     const clearColor = (e: React.MouseEvent) => {
         e.stopPropagation();
         onColorChange('');
@@ -46,23 +50,17 @@ export default function ProjectColorPicker({ project, onColorChange, triggerButt
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 items-center">
                     <Label>Elige un color para el proyecto</Label>
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
-                            <input 
-                                type="color"
-                                value={color}
-                                onChange={handleColorChange}
-                                className="w-10 h-10 p-0 border-none rounded-md cursor-pointer appearance-none"
-                                style={{backgroundColor: 'transparent'}}
-                            />
-                             <div className="absolute inset-0 -z-10 rounded-md" style={{backgroundColor: color}}></div>
-                        </div>
+                    
+                    <HexColorPicker color={color} onChange={setColor} />
+
+                    <div className="flex items-center gap-2 w-full pt-2">
+                        <div className="w-8 h-8 rounded-md border" style={{backgroundColor: color}}></div>
                         <Input
                             type="text"
                             value={color}
-                            onChange={handleColorChange}
+                            onChange={(e) => setColor(e.target.value)}
                             className="flex-1 h-10"
                             />
                         <Button variant="ghost" size="icon" onClick={clearColor}>
