@@ -120,15 +120,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setUserRoles(userRolesData);
       }
       
-      // Recalculate progress and alerts for each project
+      // Recalculate progress for each project based on its tasks
       projectsData = projectsData.map(project => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
-          const isDone = (task: Task) => task.status === 'finalizada';
-          const hoy = new Date();
-          const comienzoHoy = startOfDay(hoy);
-          const finalManana = endOfDay(addDays(hoy, 1));
-  
-          // --- Recalculate Progress ---
+          
           const updatedParts = (project.parts || []).map((part: Part) => {
               const partTasks = projectTasks.filter(t => t.partId === part.id);
               let newPartProgress = 0;
@@ -144,41 +139,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
               const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
               newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
           }
-  
-          // --- Recalculate Alerts ---
-          const atrasadas = projectTasks.filter(t => {
-              if (isDone(t) || !t.deadline) return false;
-              return isBefore(new Date(t.deadline), comienzoHoy);
-          });
-          
-          const proximas = projectTasks.filter(t => {
-              if (isDone(t) || !t.deadline) return false;
-              const deadlineDate = new Date(t.deadline);
-              return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
-          });
-  
-          const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
-          const bloqueadas = projectTasks.filter(t => t.blocked === true && !isDone(t));
-  
-          const alerts: ProjectAlerts = {
-              id: hoy.toISOString().split('T')[0].replace(/-/g, ''),
-              projectId: project.id,
-              createdAt: hoy.toISOString(),
-              counters: {
-                  atrasadas: atrasadas.length,
-                  proximas: proximas.length,
-                  sinAsignar: sinAsignar.length,
-                  bloqueadas: bloqueadas.length,
-              },
-              items: [
-                  ...atrasadas.map(t => ({type: "ATRASADA", taskId: t.id} as AlertItem)),
-                  ...proximas.map(t => ({type: "PROXIMA", taskId: t.id} as AlertItem)),
-                  ...sinAsignar.map(t => ({type: "SIN_ASIGNAR", taskId: t.id} as AlertItem)),
-                  ...bloqueadas.map(t => ({type: "BLOQUEADA", taskId: t.id} as AlertItem)),
-              ]
-          };
-  
-          return { ...project, alerts, parts: updatedParts, progress: newProjectProgress };
+
+          return { ...project, parts: updatedParts, progress: newProjectProgress };
       });
 
 
@@ -372,6 +334,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const taskForDb = JSON.parse(JSON.stringify(updatedTask));
     await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
 
+    // Update tasks state
     setTasks(currentTasks => {
         const index = currentTasks.findIndex(t => t.id === updatedTask.id);
         if (index > -1) {
@@ -382,9 +345,36 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         return [...currentTasks, updatedTask];
     });
 
-    // After saving a task, refetch all data to ensure consistency.
-    // This is a simple approach to avoid complex state management.
-    await fetchData();
+    // Recalculate progress for the affected project
+    setProjects(currentProjects => {
+        const projectIndex = currentProjects.findIndex(p => p.id === updatedTask.projectId);
+        if (projectIndex === -1) return currentProjects;
+
+        const projectToUpdate = { ...currentProjects[projectIndex] };
+        const projectTasks = [ ...tasks.filter(t => t.projectId === projectToUpdate.id && t.id !== updatedTask.id), updatedTask ];
+
+        projectToUpdate.parts = (projectToUpdate.parts || []).map(part => {
+            const partTasks = projectTasks.filter(t => t.partId === part.id);
+            if (partTasks.length > 0) {
+                const totalProgress = partTasks.reduce((acc, t) => acc + (t.progress || 0), 0);
+                part.progress = Math.round(totalProgress / partTasks.length);
+            } else {
+                part.progress = 0;
+            }
+            return part;
+        });
+
+        if (projectToUpdate.parts.length > 0) {
+            const totalProjectProgress = projectToUpdate.parts.reduce((acc, p) => acc + (p.progress || 0), 0);
+            projectToUpdate.progress = Math.round(totalProjectProgress / projectToUpdate.parts.length);
+        } else {
+            projectToUpdate.progress = 0;
+        }
+
+        const newProjects = [...currentProjects];
+        newProjects[projectIndex] = projectToUpdate;
+        return newProjects;
+    });
 
     return updatedTask;
   };
