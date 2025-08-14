@@ -70,7 +70,7 @@ export default function CreateProjectClient() {
   const handleSaveProject = async (data: ProjectFormData) => {
     setIsLoading(true);
     
-    const allEngineerIds = users.filter(u => u.role === 'Oficina Técnica' || u.role === 'Taller' || u.role === 'Eléctrico').map(u => u.id);
+    const allEngineerIds = users?.filter(u => u.role === 'Oficina Técnica' || u.role === 'Taller' || u.role === 'Eléctrico').map(u => u.id) ?? [];
 
     const newProject: Omit<Project, 'id'> = {
       name: data.name,
@@ -108,7 +108,7 @@ export default function CreateProjectClient() {
     }
   };
 
-  const managers = users.filter(u => u.role === 'Oficina Técnica' || u.role === 'Dirección de Proyecto');
+  const managers = users?.filter(u => u.role === 'Oficina Técnica' || u.role === 'Dirección de Proyecto') ?? [];
 
   return (
     <Form {...form}>
