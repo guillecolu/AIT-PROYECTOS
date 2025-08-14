@@ -56,7 +56,7 @@ import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
 import { areaColors } from '@/lib/colors';
 
 
-const componentIcons: Record<TaskComponent, React.ReactNode> = {
+const componentIcons: Record<string, React.ReactNode> = {
     'Estructura': <Wrench className="h-4 w-4 mr-2" />,
     'Cableado': <Zap className="h-4 w-4 mr-2" />,
     'Programación': <Code className="h-4 w-4 mr-2" />,
@@ -66,6 +66,8 @@ const componentIcons: Record<TaskComponent, React.ReactNode> = {
     'Soldadura': <Code className="h-4 w-4 mr-2" />,
     'Montaje': <Factory className="h-4 w-4 mr-2" />,
     'Pruebas': <CheckCircle className="h-4 w-4 mr-2" />,
+    'Fabricacion': <Factory className="h-4 w-4 mr-2" />,
+    'Eléctrico': <Zap className="h-4 w-4 mr-2" />,
 }
 
 const statusColorClasses: Record<TaskStatus, string> = {
@@ -220,11 +222,11 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
                     const colors = areaColors[stage.nombre as keyof typeof areaColors] || areaColors.default;
                     return (
-                        <div key={stage.nombre} className={cn("rounded-lg p-4 space-y-4", colors.bgColor, colors.textColor)}>
+                        <div key={stage.nombre} className={cn("rounded-lg p-4 space-y-4", colors.bgColor)}>
                              <div className="flex items-center justify-between">
                                 <div className="group flex items-center gap-2">
-                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize")}>
-                                        {componentIcons[stage.nombre as TaskComponent] || <Wrench className="h-4 w-4 mr-2" />}
+                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize", colors.textColor)}>
+                                        {componentIcons[stage.nombre] || <Wrench className="h-4 w-4 mr-2" />}
                                         <EditableField
                                             initialValue={stage.nombre}
                                             onSave={(newName) => onDepartmentNameChange(selectedPart!.id, stage.nombre, newName)}
@@ -255,8 +257,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                 <TableBody>
                                     {stageTasks.map(task => (
                                         <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer bg-card/50 hover:bg-card/90 border-b-foreground/10">
-                                            <TableCell>{task.title}</TableCell>
-                                            <TableCell>{getUserName(task.assignedToId)}</TableCell>
+                                            <TableCell className="text-foreground">{task.title}</TableCell>
+                                            <TableCell className="text-foreground">{getUserName(task.assignedToId)}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     {task.status === 'finalizada' ? (
@@ -303,10 +305,10 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                      <SignatureHistory history={task.signatureHistory || []} users={users} />
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-foreground">
                                                 <ClientSideDate dateString={task.deadline} />
                                             </TableCell>
-                                            <TableCell>{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
+                                            <TableCell className="text-foreground">{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Button variant="outline" size="sm" onClick={() => openDescriptionModal(task)}>

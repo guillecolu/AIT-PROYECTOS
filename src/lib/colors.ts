@@ -7,6 +7,7 @@ export const areaColors: Record<string, { borderColor: string, bgColor: string, 
     'Cableado':     { borderColor: 'border-purple-500',bgColor: 'bg-purple-50',textColor: 'text-purple-800', pdfFillColor: '#F3E8FF', pdfTextColor: '#5B21B6' },
     'Eléctrico':    { borderColor: 'border-yellow-500',bgColor: 'bg-yellow-50',textColor: 'text-yellow-800', pdfFillColor: '#FEF9C3', pdfTextColor: '#854d0e' },
     'Programación': { borderColor: 'border-sky-500',   bgColor: 'bg-sky-50',   textColor: 'text-sky-800', pdfFillColor: '#E0F2FE', pdfTextColor: '#0369A1' },
-    'Pruebas':      { borderColor: 'border-teal-500',  bgColor: 'bg-teal-50',  textColor: 'text-teal-800', pdfFillColor: '#D1FAE5', pdfTextColor: '#065F46' },
+    'Pruebas':      { borderColor: 'border-teal-500',  bgColor: 'bg-teal-50',  textColor: 'text-teal-800', pdfFillColor: '#CCFBF1', pdfTextColor: '#0F766E' },
+    'Fabricacion':  { borderColor: 'border-cyan-500',  bgColor: 'bg-cyan-50',  textColor: 'text-cyan-800', pdfFillColor: '#CFFAFE', pdfTextColor: '#0E7490' },
     'default':      { borderColor: 'border-gray-400',  bgColor: 'bg-gray-50',  textColor: 'text-gray-800', pdfFillColor: '#E5E7EB', pdfTextColor: '#1F2937' }
 };
