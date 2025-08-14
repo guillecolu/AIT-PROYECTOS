@@ -30,6 +30,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import TaskFormModal from '@/components/projects/task-form-modal';
 import TaskNotesModal from '@/components/projects/task-notes-modal';
@@ -48,6 +49,7 @@ import { generatePendingTasksPdf } from '@/lib/pdf-generator';
 import ProjectFiles from './project-files';
 import ProjectAlerts from './project-alerts';
 import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
+import type { DailySummaryOutput } from '@/ai/flows/generate-daily-summary.types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 
@@ -545,7 +547,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const router = useRouter();
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    const [summaryContent, setSummaryContent] = useState('');
+    const [summaryContent, setSummaryContent] = useState<DailySummaryOutput | null>(null);
     const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
@@ -844,7 +846,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 tasks: tasksForSummary,
             });
 
-            setSummaryContent(result.summary);
+            setSummaryContent(result);
             setIsSummaryDialogOpen(true);
 
         } catch (error) {
@@ -1051,7 +1053,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     </AlertDialogHeader>
                     <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">
                         <div className="p-4 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
-                            {summaryContent}
+                            {summaryContent?.summary}
                         </div>
                         <Accordion type="single" collapsible>
                             <AccordionItem value="pending-tasks">
@@ -1083,5 +1085,3 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
-
-    
