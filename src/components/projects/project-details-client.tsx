@@ -537,7 +537,7 @@ const getContrastingTextColor = (hexcolor?: string): string => {
 }
 
 export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, projects, appConfig } = useData();
+    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, appConfig } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
@@ -552,17 +552,12 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const [taskForDescription, setTaskForDescription] = useState<Task | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    // Use internal state to manage optimistic updates for project and tasks
     const [internalProject, setInternalProject] = useState(initialProject);
-    const [internalTasks, setInternalTasks] = useState(initialTasks);
-
+    const internalTasks = useMemo(() => initialTasks.filter(t => t.projectId === internalProject.id), [initialTasks, internalProject.id]);
+    
      useEffect(() => {
         setInternalProject(initialProject);
     }, [initialProject]);
-
-    useEffect(() => {
-        setInternalTasks(initialTasks);
-    }, [initialTasks]);
 
     useEffect(() => {
         if (internalProject.parts && internalProject.parts.length > 0 && !selectedPart) {
@@ -572,7 +567,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         if (selectedPart && !internalProject.parts.find(p => p.id === selectedPart.id)) {
             setSelectedPart(internalProject.parts[0] || null);
         }
-    }, [internalProject, selectedPart]);
+    }, [internalProject.parts, selectedPart]);
     
     useEffect(() => {
         const root = document.documentElement;
@@ -621,7 +616,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const bloqueadas = internalTasks.filter(t => t.blocked === true && !isDone(t));
 
         const newAlerts: ProjectAlerts = {
-            ...internalProject.alerts!,
+            ...(internalProject.alerts || { id: '', projectId: internalProject.id, createdAt: new Date().toISOString() }),
             counters: {
                 atrasadas: atrasadas.length,
                 proximas: proximas.length,
@@ -636,12 +631,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             ]
         };
 
-        setInternalProject(prev => ({ ...prev, alerts: newAlerts }));
+        if (JSON.stringify(newAlerts.counters) !== JSON.stringify(internalProject.alerts?.counters)) {
+             setInternalProject(prev => ({ ...prev, alerts: newAlerts }));
+        }
 
-    }, [internalTasks, internalProject.id]);
+    }, [internalTasks, internalProject.id, internalProject.alerts]);
 
     const handleOpenNotesModal = (task: Task) => {
-        // Ensure we have the latest version of the task
         const latestTask = internalTasks.find(t => t.id === task.id) || task;
         setTaskForNotes(latestTask);
         setIsNotesModalOpen(true);
@@ -654,20 +650,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
 
     const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>) => {
-        // Optimistic update
-        if ('id' in updatedTaskData) {
-            setInternalTasks(prevTasks => prevTasks.map(t => t.id === updatedTaskData.id ? { ...t, ...updatedTaskData } : t));
-        } else {
-            // For new tasks, we'll wait for saveTask to return the full task with ID
-        }
-        
         await saveTask(updatedTaskData);
-        
-        // This will trigger a re-fetch or re-calculation in useData hook, which updates projects
-        const latestProjectState = projects.find(p => p.id === initialProject.id);
-        if (latestProjectState) {
-          setInternalProject(latestProjectState);
-        }
     };
 
     const handleSignTask = (task: Task, userId: string) => {
@@ -677,12 +660,11 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const updatedTask: Task = {
             ...task,
             status: 'finalizada',
-            progress: 100, // Signing a task marks it as 100% complete
+            progress: 100,
             finalizedByUserId: userId,
             finalizedAt: now,
             signatureHistory: [...(task.signatureHistory || []), newSignature],
         };
-        setInternalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         handleTaskUpdate(updatedTask);
     };
 
@@ -690,22 +672,15 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const updatedTask: Task = {
             ...task,
             status: 'en-progreso',
-            progress: 0, // Revert progress to 0
+            progress: 0,
             finalizedByUserId: undefined,
             finalizedAt: undefined,
         };
-        setInternalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         handleTaskUpdate(updatedTask);
     };
 
     const handleTaskDelete = async (taskId: string) => {
-        setInternalTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
         await deleteTask(taskId);
-        // This will trigger a re-fetch or re-calculation in useData hook
-        const latestProjectState = projects.find(p => p.id === initialProject.id);
-        if (latestProjectState) {
-          setInternalProject(latestProjectState);
-        }
     };
 
     const handlePartSelect = (part: Part) => {
@@ -725,7 +700,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const newNote = { ...note, id: crypto.randomUUID() };
         const updatedNotes = [...(internalProject.notes || []), newNote];
         const updatedProject = { ...internalProject, notes: updatedNotes };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
     };
 
@@ -751,15 +725,12 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             return part;
         });
         const updatedProject = { ...internalProject, parts: updatedParts };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
     };
     
     const handleAddPart = async (partName?: string) => {
         const newPart = await addPartToProject(internalProject.id, partName);
         if (newPart) {
-            const updatedProject = { ...internalProject, parts: [...internalProject.parts, newPart] };
-            setInternalProject(updatedProject);
             setSelectedPart(newPart);
             toast({
                 title: 'Parte Añadido',
@@ -771,7 +742,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const handlePartDelete = async (partId: string) => {
         const updatedParts = internalProject.parts.filter(p => p.id !== partId);
         const updatedProject = { ...internalProject, parts: updatedParts };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
 
         if (selectedPart?.id === partId) {
@@ -792,13 +762,11 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             return part;
         });
         const updatedProject = { ...internalProject, parts: updatedParts };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
     }
 
     const handleProjectFieldChange = async (projectData: Partial<Project>) => {
         const updatedProject = { ...internalProject, ...projectData };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
         toast({
           title: 'Proyecto Actualizado',
@@ -811,7 +779,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             part.id === partId ? { ...part, name: newName } : part
         );
         const updatedProject = { ...internalProject, parts: updatedParts };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
         toast({
             title: 'Parte Actualizado',
@@ -836,7 +803,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         }
 
         const updatedProject = { ...internalProject, parts: updatedParts };
-        setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
 
         toast({
@@ -847,7 +813,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     
     const handlePartOrderChange = async (newParts: Part[]) => {
         const updatedProject = { ...internalProject, parts: newParts };
-        setInternalProject(updatedProject);
         await saveProject(updatedProject);
     }
 

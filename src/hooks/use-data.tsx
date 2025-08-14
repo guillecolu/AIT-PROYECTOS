@@ -5,7 +5,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
 import { db, storage } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc, onSnapshot, query, Unsubscribe } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
@@ -83,84 +83,111 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     });
   }
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [projectsSnap, tasksSnap, usersSnap, commonDeptSnap, commonTasksSnap, appConfigSnap, userRolesSnap] = await Promise.all([
-        getDocs(collection(db, "projects")),
-        getDocs(collection(db, "tasks")),
-        getDocs(collection(db, "users")),
-        getDocs(collection(db, "commonDepartments")),
-        getDocs(collection(db, "commonTasks")),
-        getDoc(doc(db, "appConfig", "main")),
-        getDocs(collection(db, "userRoles")),
-      ]);
-
-      let projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).sort((a,b) => (a.order || 0) - (b.order || 0));
-      let tasksData = tasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-      let usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
-      const commonDeptData = commonDeptSnap.docs.map(doc => doc.data().name);
-      const commonTasksData = commonTasksSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
-      const appConfigData = appConfigSnap.exists() ? appConfigSnap.data() as AppConfig : { logoUrl: null };
-      const userRolesData = userRolesSnap.docs.map(doc => doc.data().name);
-
-      const defaultRoles = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
-      const combinedRoles = [...new Set([...defaultRoles, ...userRolesData])];
-      
-      if (userRolesData.length < defaultRoles.length) {
-        const batch = writeBatch(db);
-        const rolesToAdd = defaultRoles.filter(role => !userRolesData.includes(role));
-        rolesToAdd.forEach(role => {
-            const newRoleRef = doc(collection(db, "userRoles"));
-            batch.set(newRoleRef, { name: role });
-        });
-        await batch.commit();
-        setUserRoles(combinedRoles);
-      } else {
-        setUserRoles(userRolesData);
-      }
-      
-      // Recalculate progress for each project based on its tasks
-      projectsData = projectsData.map(project => {
-          const projectTasks = tasksData.filter(task => task.projectId === project.id);
-          
-          const updatedParts = (project.parts || []).map((part: Part) => {
-              const partTasks = projectTasks.filter(t => t.partId === part.id);
-              let newPartProgress = 0;
-              if (partTasks.length > 0) {
-                  const totalTaskProgress = partTasks.reduce((acc, task) => acc + (task.progress || 0), 0);
-                  newPartProgress = Math.round(totalTaskProgress / partTasks.length);
-              }
-              return { ...part, progress: newPartProgress };
-          });
-  
-          let newProjectProgress = 0;
-          if (updatedParts.length > 0) {
-              const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
-              newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
-          }
-
-          return { ...project, parts: updatedParts, progress: newProjectProgress };
-      });
-
-
-      setProjects(projectsData);
-      setTasks(tasksData);
-      setUsers(usersData);
-      setCommonDepartments(commonDeptData);
-      setCommonTasks(commonTasksData);
-      setAppConfig(appConfigData);
-
-    } catch (error) {
-      console.error("Error fetching data from Firestore: ", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    setLoading(true);
+
+    const processData = (projectsData: Project[], tasksData: Task[]) => {
+      return projectsData.map(project => {
+        const projectTasks = tasksData.filter(task => task.projectId === project.id);
+
+        const updatedParts = (project.parts || []).map(part => {
+          const partTasks = projectTasks.filter(t => t.partId === part.id);
+          let newPartProgress = 0;
+          if (partTasks.length > 0) {
+            const totalTaskProgress = partTasks.reduce((acc, task) => acc + (task.progress || 0), 0);
+            newPartProgress = Math.round(totalTaskProgress / partTasks.length);
+          }
+          return { ...part, progress: newPartProgress };
+        });
+
+        let newProjectProgress = 0;
+        if (updatedParts.length > 0) {
+          const totalProjectProgress = updatedParts.reduce((acc, part) => acc + (part.progress || 0), 0);
+          newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
+        }
+
+        return { ...project, parts: updatedParts, progress: newProjectProgress };
+      });
+    };
+
+    const unsubscribers: Unsubscribe[] = [];
+
+    const projectsQuery = query(collection(db, "projects"));
+    const projectsUnsub = onSnapshot(projectsQuery, (querySnapshot) => {
+        const projectsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).sort((a,b) => (a.order || 0) - (b.order || 0));
+        setTasks(currentTasks => {
+            const updatedProjects = processData(projectsData, currentTasks);
+            setProjects(updatedProjects);
+            return currentTasks;
+        });
+    }, (error) => console.error("Projects Snapshot Error:", error));
+    unsubscribers.push(projectsUnsub);
+
+    const tasksQuery = query(collection(db, "tasks"));
+    const tasksUnsub = onSnapshot(tasksQuery, (querySnapshot) => {
+        const tasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+        setProjects(currentProjects => {
+            const updatedProjects = processData(currentProjects, tasksData);
+            setProjects(updatedProjects);
+            return currentProjects;
+        });
+        setTasks(tasksData);
+    }, (error) => console.error("Tasks Snapshot Error:", error));
+    unsubscribers.push(tasksUnsub);
+
+    const usersQuery = query(collection(db, "users"));
+    const usersUnsub = onSnapshot(usersQuery, (querySnapshot) => {
+        const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
+        setUsers(usersData);
+    }, (error) => console.error("Users Snapshot Error:", error));
+    unsubscribers.push(usersUnsub);
+    
+    const commonDeptQuery = query(collection(db, "commonDepartments"));
+    const commonDeptUnsub = onSnapshot(commonDeptQuery, (querySnapshot) => {
+        const commonDeptData = querySnapshot.docs.map(doc => doc.data().name);
+        setCommonDepartments(commonDeptData);
+    }, (error) => console.error("Common Depts Snapshot Error:", error));
+    unsubscribers.push(commonDeptUnsub);
+
+    const commonTasksQuery = query(collection(db, "commonTasks"));
+    const commonTasksUnsub = onSnapshot(commonTasksQuery, (querySnapshot) => {
+        const commonTasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
+        setCommonTasks(commonTasksData);
+    }, (error) => console.error("Common Tasks Snapshot Error:", error));
+    unsubscribers.push(commonTasksUnsub);
+
+    const appConfigRef = doc(db, "appConfig", "main");
+    const appConfigUnsub = onSnapshot(appConfigRef, (docSnap) => {
+        const appConfigData = docSnap.exists() ? docSnap.data() as AppConfig : { logoUrl: null };
+        setAppConfig(appConfigData);
+    }, (error) => console.error("App Config Snapshot Error:", error));
+    unsubscribers.push(appConfigUnsub);
+
+    const userRolesQuery = query(collection(db, "userRoles"));
+    const userRolesUnsub = onSnapshot(userRolesQuery, (querySnapshot) => {
+        const userRolesData = querySnapshot.docs.map(doc => doc.data().name as UserRole);
+        const defaultRoles: UserRole[] = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+        const combinedRoles = [...new Set([...defaultRoles, ...userRolesData])];
+        
+        const rolesToAdd = defaultRoles.filter(role => !userRolesData.includes(role));
+        if (rolesToAdd.length > 0) {
+            const batch = writeBatch(db);
+            rolesToAdd.forEach(role => {
+                const newRoleRef = doc(collection(db, "userRoles"));
+                batch.set(newRoleRef, { name: role });
+            });
+            batch.commit();
+        }
+        setUserRoles(combinedRoles);
+    }, (error) => console.error("User Roles Snapshot Error:", error));
+    unsubscribers.push(userRolesUnsub);
+
+    setLoading(false);
+
+    return () => {
+        unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
   
   const saveAppConfig = async (configUpdate: Partial<AppConfig>) => {
     const configRef = doc(db, 'appConfig', 'main');
@@ -168,15 +195,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const currentConfig = docSnap.exists() ? docSnap.data() : {};
     const newConfig = { ...currentConfig, ...configUpdate };
     
-    await setDoc(configRef, newConfig);
-    setAppConfig(newConfig as AppConfig);
+    await setDoc(configRef, newConfig, { merge: true });
   };
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
     if (commonDepartments.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
     const newDocRef = doc(collection(db, "commonDepartments"));
     await setDoc(newDocRef, { name: departmentName });
-    setCommonDepartments(prev => [...prev, departmentName]);
   }, [commonDepartments]);
   
   const saveCommonTask = useCallback(async (task: CommonTask) => {
@@ -188,12 +213,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const newDocRef = doc(collection(db, "commonTasks"), task.id);
     await setDoc(newDocRef, task);
-    setCommonTasks(prev => [...prev, task]);
   }, [commonTasks]);
 
   const deleteCommonTask = async (taskId: string) => {
     await deleteDoc(doc(db, "commonTasks", taskId));
-    setCommonTasks(prev => prev.filter(t => t.id !== taskId));
   };
   
   const addPartToProject = async (projectId: string, partName?: string): Promise<Part | null> => {
@@ -205,6 +228,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           name: partName || `Nuevo Parte ${project.parts?.length || 0 + 1}`,
           stages: [],
           progress: 0,
+          attachments: []
       };
       
       const updatedProject = { ...project, parts: [...(project.parts || []), newPart] };
@@ -247,7 +271,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             const updatedProject = { ...project, parts: updatedParts };
             await saveProject(updatedProject);
             
-            setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
             return newAttachment;
 
         } catch (error) {
@@ -279,8 +302,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
         const updatedProject = { ...project, parts: updatedParts };
         await saveProject(updatedProject);
-        // Optimistic update
-        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
     };
 
   const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
@@ -291,12 +312,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     let updatedProject: Project;
     if ('id' in projectData) {
       updatedProject = { ...projectData };
-      setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     } else {
       const newId = doc(collection(db, "projects")).id;
       const order = projects.length;
       updatedProject = { ...projectData, id: newId, order };
-      setProjects(prev => [...prev, updatedProject]);
     }
     
     // Create a deep copy for Firestore to avoid issues with custom objects or undefined values
@@ -316,9 +335,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
       
     await batch.commit();
-
-    setProjects(prev => prev.filter(p => p.id !== projectId));
-    setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
   
   const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
@@ -334,48 +350,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const taskForDb = JSON.parse(JSON.stringify(updatedTask));
     await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
 
-    // Update tasks state
-    setTasks(currentTasks => {
-        const index = currentTasks.findIndex(t => t.id === updatedTask.id);
-        if (index > -1) {
-            const newTasks = [...currentTasks];
-            newTasks[index] = updatedTask;
-            return newTasks;
-        }
-        return [...currentTasks, updatedTask];
-    });
-
-    // Recalculate progress for the affected project
-    setProjects(currentProjects => {
-        const projectIndex = currentProjects.findIndex(p => p.id === updatedTask.projectId);
-        if (projectIndex === -1) return currentProjects;
-
-        const projectToUpdate = { ...currentProjects[projectIndex] };
-        const projectTasks = [ ...tasks.filter(t => t.projectId === projectToUpdate.id && t.id !== updatedTask.id), updatedTask ];
-
-        projectToUpdate.parts = (projectToUpdate.parts || []).map(part => {
-            const partTasks = projectTasks.filter(t => t.partId === part.id);
-            if (partTasks.length > 0) {
-                const totalProgress = partTasks.reduce((acc, t) => acc + (t.progress || 0), 0);
-                part.progress = Math.round(totalProgress / partTasks.length);
-            } else {
-                part.progress = 0;
-            }
-            return part;
-        });
-
-        if (projectToUpdate.parts.length > 0) {
-            const totalProjectProgress = projectToUpdate.parts.reduce((acc, p) => acc + (p.progress || 0), 0);
-            projectToUpdate.progress = Math.round(totalProjectProgress / projectToUpdate.parts.length);
-        } else {
-            projectToUpdate.progress = 0;
-        }
-
-        const newProjects = [...currentProjects];
-        newProjects[projectIndex] = projectToUpdate;
-        return newProjects;
-    });
-
     return updatedTask;
   };
   
@@ -384,9 +358,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (!taskToDelete) return;
 
     await deleteDoc(doc(db, "tasks", taskId));
-
-    const newTasks = tasks.filter(t => t.id !== taskId);
-    setTasks(newTasks);
   };
 
   const saveUser = async (user: Omit<User, 'id'> | User): Promise<User> => {
@@ -401,23 +372,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const userForDb = JSON.parse(JSON.stringify(updatedUser));
     await setDoc(doc(db, "users", userForDb.id), userForDb);
-    
-    setUsers(prev => {
-        const userIndex = prev.findIndex(u => u.id === updatedUser.id);
-        if (userIndex > -1) {
-            const newUsers = [...prev];
-            newUsers[userIndex] = updatedUser;
-            return newUsers;
-        }
-        return [...prev, updatedUser];
-    });
 
     return updatedUser;
   };
 
   const deleteUser = async (userId: string) => {
     await deleteDoc(doc(db, "users", userId));
-    setUsers(prev => prev.filter(u => u.id !== userId));
     
     // Unassign tasks from deleted user
     const tasksToUpdate = tasks.filter(t => t.assignedToId === userId);
@@ -427,21 +387,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         batch.update(taskRef, { assignedToId: "" });
     });
     await batch.commit();
-
-    setTasks(prev => prev.map(t => t.assignedToId === userId ? { ...t, assignedToId: '' } : t));
   };
   
   const saveUserRole = async (role: UserRole) => {
     if (userRoles.includes(role)) return;
     await addDoc(collection(db, "userRoles"), { name: role });
-    setUserRoles(prev => [...prev, role]);
   };
 
   const deleteUserRole = async (role: UserRole) => {
       const q = (await getDocs(collection(db, "userRoles"))).docs.find(doc => doc.data().name === role);
       if (q) {
           await deleteDoc(q.ref);
-          setUserRoles(prev => prev.filter(r => r !== role));
       }
   };
 
@@ -512,3 +468,4 @@ export const useData = () => {
 
 
     
+
