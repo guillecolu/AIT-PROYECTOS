@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect, ChangeEvent } from 'react';
@@ -68,6 +69,7 @@ const ClientSideDate = ({ dateString }: { dateString: string }) => {
     const [formattedDate, setFormattedDate] = useState('');
 
     useEffect(() => {
+        // Ensure this only runs on the client
         const { format, es } = require('date-fns');
         setFormattedDate(format(new Date(dateString), 'dd/MM/yyyy', { locale: es }));
     }, [dateString]);

@@ -18,8 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { startOfDay, addDays, isBefore, endOfDay } from 'date-fns';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+
 
 interface ProjectAlertsProps {
     alerts: ProjectAlerts | undefined;
@@ -59,6 +58,7 @@ const ClientSideDate = ({ dateString }: { dateString: string }) => {
     const [formattedDate, setFormattedDate] = useState('');
 
     useEffect(() => {
+        const { format, es } = require('date-fns');
         if (dateString) {
             setFormattedDate(format(new Date(dateString), 'dd/MM/yyyy', { locale: es }));
         }
