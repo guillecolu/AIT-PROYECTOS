@@ -22,6 +22,7 @@ import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 
 const taskSchema = z.object({
@@ -162,12 +163,7 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
         setIsAddCommonTaskOpen(false);
     };
 
-    const handlePrefillFromCommonTask = (value: string) => {
-        if (value === '__add_new__') {
-            setIsAddCommonTaskOpen(true);
-            return;
-        }
-        const selectedCommonTask = commonTasks.find(ct => ct.id === value);
+    const handlePrefillFromCommonTask = (selectedCommonTask: CommonTask) => {
         if (selectedCommonTask) {
             form.setValue('title', selectedCommonTask.title);
             form.setValue('description', selectedCommonTask.description);
@@ -227,43 +223,44 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                     )}
                     />
                      {commonTasks.length > 0 && (
-                         <FormItem>
-                            <FormLabel>Tareas Comunes (Opcional)</FormLabel>
-                             <Select onValueChange={handlePrefillFromCommonTask}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar para autocompletar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(groupedCommonTasks).map(([component, tasks]) => (
-                                        <SelectGroup key={component}>
-                                            <SelectLabel>{component}</SelectLabel>
-                                            {tasks.map(ct => (
-                                                <div key={ct.id} className="flex items-center justify-between pr-2 group">
-                                                    <SelectItem value={ct.id} className="flex-grow">
-                                                        {ct.title} <span className="text-muted-foreground ml-2">({ct.estimatedTime}h)</span>
-                                                    </SelectItem>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
-                                                        onClick={(e) => handleDeleteClick(e, ct)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </SelectGroup>
-                                    ))}
-                                    <SelectSeparator />
-                                    <SelectItem value="__add_new__">
-                                        <span className="flex items-center gap-2">
-                                            <PlusCircle className="h-4 w-4" />
-                                            Añadir tarea común...
-                                        </span>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </FormItem>
+                        <div className="space-y-2">
+                             <FormLabel>Tareas Comunes (Opcional)</FormLabel>
+                             <Accordion type="multiple" className="w-full">
+                                {Object.entries(groupedCommonTasks).map(([component, tasks]) => (
+                                    <AccordionItem value={component} key={component}>
+                                        <AccordionTrigger className="text-sm py-2">
+                                            {component} ({tasks.length})
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                             <div className="space-y-1 pl-2">
+                                                {tasks.map(ct => (
+                                                    <div key={ct.id} className="group flex items-center justify-between">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            className="flex-grow justify-start font-normal text-sm"
+                                                            onClick={() => handlePrefillFromCommonTask(ct)}
+                                                        >
+                                                            {ct.title}
+                                                            <span className="text-muted-foreground ml-2">({ct.estimatedTime}h)</span>
+                                                        </Button>
+                                                         <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+                                                            onClick={(e) => handleDeleteClick(e, ct)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                             </Accordion>
+                        </div>
                     )}
                     <FormField
                     control={form.control}
