@@ -136,7 +136,7 @@ function SignatureHistory({ history, users }: { history: Signature[], users: Use
 function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
-    const { areaColors, saveAreaColor } = useData();
+    const { areaColors } = useData();
     
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -215,6 +215,13 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
     const partStages = project.parts.find(p => p.id === selectedPart.id)?.stages || [];
     const partTasks = tasks.filter(t => t.partId === selectedPart.id);
     
+    const handleStatusChange = (task: Task, newStatus: TaskStatus) => {
+        if (task.status !== newStatus) {
+            const updatedTask = { ...task, status: newStatus };
+            onTaskUpdate(updatedTask);
+        }
+    };
+
 
     return (
         <div className="space-y-6">
@@ -237,10 +244,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             label="Nombre del Área"
                                         />
                                     </h3>
-                                    <AreaColorPicker
-                                        areaName={stage.nombre}
-                                        onSave={saveAreaColor}
-                                    />
+                                    <AreaColorPicker areaName={stage.nombre} />
                                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -305,9 +309,17 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                                     ))}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
-                                                            <Badge className={cn("capitalize border-0", statusColorClasses[task.status])}>
-                                                                {task.status.replace('-', ' ')}
-                                                            </Badge>
+                                                            <Select onValueChange={(value: TaskStatus) => handleStatusChange(task, value)} value={task.status}>
+                                                                <SelectTrigger className={cn("capitalize border-0 w-40", statusColorClasses[task.status])}>
+                                                                    <SelectValue placeholder="Seleccionar estado" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="pendiente">Pendiente</SelectItem>
+                                                                    <SelectItem value="en-progreso">En Progreso</SelectItem>
+                                                                    <SelectItem value="para-soldar">Para Soldar</SelectItem>
+                                                                    <SelectItem value="montada">Montada</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </>
                                                     )}
                                                      <SignatureHistory history={task.signatureHistory || []} users={users} />
