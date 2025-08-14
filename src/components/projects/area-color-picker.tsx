@@ -26,7 +26,7 @@ export default function AreaColorPicker({ areaName, currentColor, onSave }: Area
     useEffect(() => {
         setBgColor(currentColor.bgColor);
         setTextColor(currentColor.textColor);
-    }, [currentColor]);
+    }, [currentColor, isOpen]);
     
     const handleSave = (e: React.MouseEvent) => {
         e.stopPropagation();
