@@ -11,13 +11,13 @@ import * as mime from 'mime-types';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
 
 interface DataContextProps {
-  projects: Project[];
-  tasks: Task[];
-  users: User[];
-  userRoles: UserRole[];
+  projects: Project[] | null;
+  tasks: Task[] | null;
+  users: User[] | null;
+  userRoles: UserRole[] | null;
   appConfig: AppConfig;
-  commonDepartments: string[];
-  commonTasks: CommonTask[];
+  commonDepartments: string[] | null;
+  commonTasks: CommonTask[] | null;
   loading: boolean;
   getProjectById: (id: string) => Project | undefined;
   getTasksByProjectId: (projectId: string) => Task[];
@@ -38,20 +38,20 @@ interface DataContextProps {
   deleteCommonTask: (taskId: string) => Promise<void>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
   uploadFile: (file: File, path: string, onProgress?: (progress: number) => void) => Promise<string>;
-  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  setProjects: React.Dispatch<React.SetStateAction<Project[] | null>>;
+  setUsers: React.Dispatch<React.SetStateAction<User[] | null>>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [userRoles, setUserRoles] = useState<UserRole[] | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig>({ logoUrl: null });
-  const [commonDepartments, setCommonDepartments] = useState<string[]>([]);
-  const [commonTasks, setCommonTasks] = useState<CommonTask[]>([]);
+  const [commonDepartments, setCommonDepartments] = useState<string[] | null>(null);
+  const [commonTasks, setCommonTasks] = useState<CommonTask[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const uploadFile = async (file: File, path: string, onProgress?: (progress: number) => void): Promise<string> => {
@@ -84,9 +84,22 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    setLoading(true);
+    let initialProjectsLoaded = false;
+    let initialTasksLoaded = false;
+    let initialUsersLoaded = false;
+    let initialRolesLoaded = false;
+    let initialConfigLoaded = false;
+    let initialCommonDeptsLoaded = false;
+    let initialCommonTasksLoaded = false;
 
-    const processData = (projectsData: Project[], tasksData: Task[]) => {
+    const checkAllDataLoaded = () => {
+        if (initialProjectsLoaded && initialTasksLoaded && initialUsersLoaded && initialRolesLoaded && initialConfigLoaded && initialCommonDeptsLoaded && initialCommonTasksLoaded) {
+            setLoading(false);
+        }
+    };
+
+    const processData = (projectsData: Project[] | null, tasksData: Task[] | null) => {
+      if (!projectsData || !tasksData) return projectsData;
       return projectsData.map(project => {
         const projectTasks = tasksData.filter(task => task.projectId === project.id);
 
@@ -120,6 +133,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             setProjects(updatedProjects);
             return currentTasks;
         });
+        if (!initialProjectsLoaded) {
+            initialProjectsLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("Projects Snapshot Error:", error));
     unsubscribers.push(projectsUnsub);
 
@@ -132,6 +149,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             return currentProjects;
         });
         setTasks(tasksData);
+        if (!initialTasksLoaded) {
+            initialTasksLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("Tasks Snapshot Error:", error));
     unsubscribers.push(tasksUnsub);
 
@@ -139,6 +160,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const usersUnsub = onSnapshot(usersQuery, (querySnapshot) => {
         const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
         setUsers(usersData);
+        if (!initialUsersLoaded) {
+            initialUsersLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("Users Snapshot Error:", error));
     unsubscribers.push(usersUnsub);
     
@@ -146,6 +171,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const commonDeptUnsub = onSnapshot(commonDeptQuery, (querySnapshot) => {
         const commonDeptData = querySnapshot.docs.map(doc => doc.data().name);
         setCommonDepartments(commonDeptData);
+         if (!initialCommonDeptsLoaded) {
+            initialCommonDeptsLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("Common Depts Snapshot Error:", error));
     unsubscribers.push(commonDeptUnsub);
 
@@ -153,6 +182,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const commonTasksUnsub = onSnapshot(commonTasksQuery, (querySnapshot) => {
         const commonTasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
         setCommonTasks(commonTasksData);
+         if (!initialCommonTasksLoaded) {
+            initialCommonTasksLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("Common Tasks Snapshot Error:", error));
     unsubscribers.push(commonTasksUnsub);
 
@@ -160,6 +193,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const appConfigUnsub = onSnapshot(appConfigRef, (docSnap) => {
         const appConfigData = docSnap.exists() ? docSnap.data() as AppConfig : { logoUrl: null };
         setAppConfig(appConfigData);
+        if (!initialConfigLoaded) {
+            initialConfigLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("App Config Snapshot Error:", error));
     unsubscribers.push(appConfigUnsub);
 
@@ -179,10 +216,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             batch.commit();
         }
         setUserRoles(combinedRoles);
+        if (!initialRolesLoaded) {
+            initialRolesLoaded = true;
+            checkAllDataLoaded();
+        }
     }, (error) => console.error("User Roles Snapshot Error:", error));
     unsubscribers.push(userRolesUnsub);
-
-    setLoading(false);
 
     return () => {
         unsubscribers.forEach(unsub => unsub());
@@ -199,13 +238,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
-    if (commonDepartments.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
+    if (commonDepartments?.find(d => d.toLowerCase() === departmentName.toLowerCase())) return;
     const newDocRef = doc(collection(db, "commonDepartments"));
     await setDoc(newDocRef, { name: departmentName });
   }, [commonDepartments]);
   
   const saveCommonTask = useCallback(async (task: CommonTask) => {
-    const taskExists = commonTasks.some(t => 
+    const taskExists = commonTasks?.some(t => 
         t.title.toLowerCase() === task.title.toLowerCase() && 
         t.component.toLowerCase() === task.component.toLowerCase()
     );
@@ -220,7 +259,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addPartToProject = async (projectId: string, partName?: string): Promise<Part | null> => {
-      const project = projects.find(p => p.id === projectId);
+      const project = projects?.find(p => p.id === projectId);
       if (!project) return null;
 
       const newPart: Part = {
@@ -238,6 +277,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
     const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Attachment | null> => {
+        if (!projects || !users) return null;
         const project = projects.find(p => p.id === projectId);
         if (!project) return null;
 
@@ -280,6 +320,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     };
   
     const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<void> => {
+       if (!projects) return;
        const project = projects.find(p => p.id === projectId);
         if (!project) return;
 
@@ -304,9 +345,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         await saveProject(updatedProject);
     };
 
-  const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
-  const getTasksByProjectId = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
-  const getUsers = useCallback(() => users, [users]);
+  const getProjectById = useCallback((id: string) => projects?.find(p => p.id === id), [projects]);
+  const getTasksByProjectId = useCallback((projectId: string) => tasks?.filter(t => t.projectId === projectId) || [], [tasks]);
+  const getUsers = useCallback(() => users || [], [users]);
 
   const saveProject = async (projectData: Omit<Project, 'id'> | Project): Promise<Project> => {
     let updatedProject: Project;
@@ -314,7 +355,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updatedProject = { ...projectData };
     } else {
       const newId = doc(collection(db, "projects")).id;
-      const order = projects.length;
+      const order = projects?.length || 0;
       updatedProject = { ...projectData, id: newId, order };
     }
     
@@ -331,7 +372,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const projectRef = doc(db, "projects", projectId);
     batch.delete(projectRef);
 
-    const tasksToDelete = tasks.filter(t => t.projectId === projectId);
+    const tasksToDelete = tasks?.filter(t => t.projectId === projectId) || [];
     tasksToDelete.forEach(t => batch.delete(doc(db, "tasks", t.id)));
       
     await batch.commit();
@@ -354,7 +395,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const deleteTask = async (taskId: string) => {
-    const taskToDelete = tasks.find(t => t.id === taskId);
+    const taskToDelete = tasks?.find(t => t.id === taskId);
     if (!taskToDelete) return;
 
     await deleteDoc(doc(db, "tasks", taskId));
@@ -366,7 +407,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updatedUser = user;
     } else {
       const newId = doc(collection(db, "users")).id;
-      const order = users.length;
+      const order = users?.length || 0;
       updatedUser = { ...user, id: newId, order };
     }
 
@@ -379,6 +420,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const deleteUser = async (userId: string) => {
     await deleteDoc(doc(db, "users", userId));
     
+    if (!tasks) return;
     // Unassign tasks from deleted user
     const tasksToUpdate = tasks.filter(t => t.assignedToId === userId);
     const batch = writeBatch(db);
@@ -390,7 +432,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const saveUserRole = async (role: UserRole) => {
-    if (userRoles.includes(role)) return;
+    if (userRoles?.includes(role)) return;
     await addDoc(collection(db, "userRoles"), { name: role });
   };
 
@@ -470,3 +512,6 @@ export const useData = () => {
     
 
 
+
+
+    

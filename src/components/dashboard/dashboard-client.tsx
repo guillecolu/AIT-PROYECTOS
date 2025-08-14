@@ -82,6 +82,7 @@ export default function DashboardClient() {
     const { projects, users, loading } = useData();
 
     const { activeProjects, urgentProjects, closedProjects } = useMemo(() => {
+        if (!projects) return { activeProjects: [], urgentProjects: [], closedProjects: [] };
         const active = projects.filter(p => p.status === 'activo');
         return {
             activeProjects: active,
@@ -94,7 +95,7 @@ export default function DashboardClient() {
         return <div className="flex items-center justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     }
 
-    if (projects.length === 0 && !loading) {
+    if (!projects || projects.length === 0) {
         return <EmptyDashboard />;
     }
 
@@ -137,10 +138,10 @@ export default function DashboardClient() {
                 />
                 <StatCard 
                     title="Personas" 
-                    value={users.length} 
+                    value={users?.length || 0} 
                     icon={Users} 
                     href="/dashboard/people"
-                    tooltipContent={<StatCardTooltipContent title="Miembros del Equipo" items={users} />}
+                    tooltipContent={<StatCardTooltipContent title="Miembros del Equipo" items={users || []} />}
                 />
             </div>
             
@@ -152,7 +153,7 @@ export default function DashboardClient() {
                     </h2>
                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {urgentProjects.map(project => (
-                           <ProjectCard key={project.id} project={project} users={users} />
+                           <ProjectCard key={project.id} project={project} users={users || []} />
                         ))}
                     </div>
                 </div>
@@ -165,7 +166,7 @@ export default function DashboardClient() {
                  {activeProjects.filter(p => !p.isUrgent).length > 0 ? (
                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {activeProjects.filter(p => !p.isUrgent).map(project => (
-                             <ProjectCard key={project.id} project={project} users={users} />
+                             <ProjectCard key={project.id} project={project} users={users || []} />
                         ))}
                     </div>
                  ) : (
@@ -178,3 +179,5 @@ export default function DashboardClient() {
         </div>
     );
 }
+
+    

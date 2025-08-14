@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil, GripVertical } from 'lucide-react';
+import { AlertTriangle, ChevronsUpDown, PlusCircle, Trash2, UserPlus, Briefcase, Zap, Cog, Building, UserCheck, Pencil, GripVertical, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TaskFormModal from '@/components/projects/task-form-modal';
 import UserFormModal from './user-form-modal';
@@ -166,16 +166,16 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     );
     
     useEffect(() => {
-        if (!selectedUser && users.length > 0) {
+        if (!selectedUser && users && users.length > 0) {
             setSelectedUser(users.find(u => u.role === 'Oficina Técnica') || users[0]);
         }
     }, [users, selectedUser]);
 
 
-    const getProjectName = (projectId: string) => projects.find(p => p.id === projectId)?.name || 'N/A';
+    const getProjectName = (projectId: string) => projects?.find(p => p.id === projectId)?.name || 'N/A';
     
     const selectedUserTasks = useMemo(() => {
-        if (!selectedUser) return [];
+        if (!selectedUser || !tasks) return [];
         let filtered = tasks.filter(task => task.assignedToId === selectedUser.id);
         if (sortPriority) {
             filtered.sort((a, b) => {
@@ -206,7 +206,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     }
     
      const handleDeleteUser = async () => {
-        if (!userToDelete) return;
+        if (!userToDelete || !users) return;
         
         await deleteUser(userToDelete.id);
         
@@ -245,15 +245,16 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     }
 
     const selectedUserProjects = useMemo(() => {
-        if (!selectedUser) return [];
+        if (!selectedUser || !projects) return [];
         return projects.filter(p => selectedUser.assignedProjectIds.includes(p.id));
     }, [projects, selectedUser]);
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
+        if (over && active.id !== over.id && users) {
             setUsers((items) => {
+                if (!items) return null;
                 const oldIndex = items.findIndex((item) => item.id === active.id);
                 const newIndex = items.findIndex((item) => item.id === over.id);
                 const newOrder = arrayMove(items, oldIndex, newIndex);
@@ -272,10 +273,10 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
     };
     
      if (loading) {
-         return <div>Cargando...</div>;
+         return <div className="flex items-center justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
      }
 
-     if (users.length === 0) {
+     if (!users || users.length === 0) {
         return (
              <div className="space-y-6">
                  <div className="flex justify-between items-center">
@@ -323,7 +324,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                             <SortableContext items={users.map(u => u.id)} strategy={verticalListSortingStrategy}>
                                  <Accordion type="multiple" className="w-full">
-                                    {userRoles.map(category => (
+                                    {userRoles && userRoles.map(category => (
                                         groupedUsers[category] && (
                                             <AccordionItem value={category} key={category} className="border-none">
                                                 <AccordionTrigger className="py-2 px-2 hover:bg-muted/50 rounded-md">
@@ -338,7 +339,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                                                         <SortableUserItem
                                                             key={user.id}
                                                             user={user}
-                                                            tasks={tasks}
+                                                            tasks={tasks || []}
                                                             isSelected={selectedUser?.id === user.id}
                                                             onSelect={setSelectedUser}
                                                             onEdit={handleOpenUserModal}
@@ -463,11 +464,11 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                 onClose={() => setIsTaskModalOpen(false)}
                 onSave={handleSaveTask}
                 task={null}
-                users={users}
-                projects={projects}
+                users={users || []}
+                projects={projects || []}
                 defaultComponent={null}
                 defaultAssigneeId={selectedUser.id}
-                commonTasks={commonTasks}
+                commonTasks={commonTasks || []}
             /> }
             <UserFormModal
                 isOpen={isUserModalOpen}
@@ -478,3 +479,5 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         </div>
     );
 }
+
+    
