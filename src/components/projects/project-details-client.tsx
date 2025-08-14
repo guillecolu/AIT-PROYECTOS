@@ -1087,6 +1087,3 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
-
-    
-

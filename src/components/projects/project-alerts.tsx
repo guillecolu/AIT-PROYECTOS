@@ -105,7 +105,7 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
             case 'sinAsignar':
                 return tasks.filter(t => !t.assignedToId && !isDone(t));
             case 'bloqueadas':
-                 return tasks.filter(t => t.blocked === true);
+                 return tasks.filter(t => t.blocked === true && !isDone(t));
             default:
                 return [];
         }
