@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit } from 'lucide-react';
-import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment } from '@/lib/types';
+import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment, ProjectAlerts, AlertItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -52,6 +52,7 @@ import ProjectAlerts from './project-alerts';
 import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
 import type { DailySummaryOutput } from '@/ai/flows/generate-daily-summary.types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -597,6 +598,47 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             root.style.removeProperty('--ring');
         }
     }, [internalProject.color]);
+    
+    useEffect(() => {
+        // Recalculate alerts whenever tasks change
+        const isDone = (task: Task) => task.status === 'finalizada';
+        const hoy = new Date();
+        const comienzoHoy = startOfDay(hoy);
+        const finalManana = endOfDay(addDays(hoy, 1));
+
+        const atrasadas = internalTasks.filter(t => {
+            if (isDone(t) || !t.deadline) return false;
+            return isBefore(new Date(t.deadline), comienzoHoy);
+        });
+
+        const proximas = internalTasks.filter(t => {
+            if (isDone(t) || !t.deadline) return false;
+            const deadlineDate = new Date(t.deadline);
+            return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
+        });
+
+        const sinAsignar = internalTasks.filter(t => !t.assignedToId && !isDone(t));
+        const bloqueadas = internalTasks.filter(t => t.blocked === true && !isDone(t));
+
+        const newAlerts: ProjectAlerts = {
+            ...internalProject.alerts!,
+            counters: {
+                atrasadas: atrasadas.length,
+                proximas: proximas.length,
+                sinAsignar: sinAsignar.length,
+                bloqueadas: bloqueadas.length,
+            },
+            items: [
+                ...atrasadas.map(t => ({ type: "ATRASADA", taskId: t.id } as AlertItem)),
+                ...proximas.map(t => ({ type: "PROXIMA", taskId: t.id } as AlertItem)),
+                ...sinAsignar.map(t => ({ type: "SIN_ASIGNAR", taskId: t.id } as AlertItem)),
+                ...bloqueadas.map(t => ({ type: "BLOQUEADA", taskId: t.id } as AlertItem)),
+            ]
+        };
+
+        setInternalProject(prev => ({ ...prev, alerts: newAlerts }));
+
+    }, [internalTasks, internalProject.id]);
 
     const handleOpenNotesModal = (task: Task) => {
         // Ensure we have the latest version of the task
@@ -640,6 +682,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             finalizedAt: now,
             signatureHistory: [...(task.signatureHistory || []), newSignature],
         };
+        setInternalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         handleTaskUpdate(updatedTask);
     };
 
@@ -651,6 +694,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             finalizedByUserId: undefined,
             finalizedAt: undefined,
         };
+        setInternalTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
         handleTaskUpdate(updatedTask);
     };
 
