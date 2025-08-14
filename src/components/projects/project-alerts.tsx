@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Project, ProjectAlerts, Task, User } from '@/lib/types';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -121,21 +121,20 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
                             if (!config) return null;
                             const Icon = config.icon;
                             return (
-                                <DialogTrigger asChild key={key}>
-                                    <Button 
-                                        variant="secondary" 
-                                        size="sm" 
-                                        className={`h-8 ${config.color}`}
-                                        onClick={() => {
-                                            setSelectedAlertType(key);
-                                            setIsModalOpen(true);
-                                        }}
-                                    >
-                                        <Icon className="h-4 w-4 mr-2" />
-                                        {config.label}
-                                        <Badge variant="secondary" className="ml-2 bg-white/70 text-inherit">{value}</Badge>
-                                    </Button>
-                                </DialogTrigger>
+                                <Button 
+                                    key={key}
+                                    variant="secondary" 
+                                    size="sm" 
+                                    className={`h-8 ${config.color}`}
+                                    onClick={() => {
+                                        setSelectedAlertType(key);
+                                        setIsModalOpen(true);
+                                    }}
+                                >
+                                    <Icon className="h-4 w-4 mr-2" />
+                                    {config.label}
+                                    <Badge variant="secondary" className="ml-2 bg-white/70 text-inherit">{value}</Badge>
+                                </Button>
                             )
                         })}
                     </div>
