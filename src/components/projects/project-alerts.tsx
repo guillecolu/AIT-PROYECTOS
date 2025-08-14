@@ -90,7 +90,7 @@ export default function ProjectAlerts({ alerts, project, tasks, users }: Project
         const hoy = new Date();
         const comienzoHoy = startOfDay(hoy);
         const finalHoy = endOfDay(hoy);
-        const proximasLimite = addDays(comienzoHoy, 3);
+        const proximasLimite = addDays(comienzoHoy, 1);
         const isDone = (task: Task) => task.status === 'finalizada';
 
         switch(selectedAlertType) {
