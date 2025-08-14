@@ -14,6 +14,7 @@ export default function ArchiveClient() {
     const [searchTerm, setSearchTerm] = useState('');
 
     const closedProjects = useMemo(() => {
+        if (!projects) return [];
         return projects.filter(p => p.status === 'cerrado');
     }, [projects]);
 
@@ -74,7 +75,7 @@ export default function ArchiveClient() {
                             <AccordionContent className="pt-6">
                                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                     {yearProjects.map(project => (
-                                        <ProjectCard key={project.id} project={project} users={users} />
+                                        <ProjectCard key={project.id} project={project} users={users || []} />
                                     ))}
                                 </div>
                             </AccordionContent>

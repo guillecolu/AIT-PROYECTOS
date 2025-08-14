@@ -302,14 +302,17 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
         )
     }
 
-    const groupedUsers = users.reduce((acc, user) => {
-        const role = user.role;
-        if (!acc[role]) {
-            acc[role] = [];
-        }
-        acc[role].push(user);
-        return acc;
-    }, {} as Record<UserRole, User[]>);
+    const groupedUsers = useMemo(() => {
+        if (!users) return {};
+        return users.reduce((acc, user) => {
+            const role = user.role;
+            if (!acc[role]) {
+                acc[role] = [];
+            }
+            acc[role].push(user);
+            return acc;
+        }, {} as Record<UserRole, User[]>);
+    }, [users]);
 
     return (
         <div className="space-y-6">

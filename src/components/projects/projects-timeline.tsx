@@ -42,6 +42,7 @@ const componentIcons: Record<string, React.ReactNode> = {
 export default function ProjectsTimeline({ projects, users, tasks }: { projects: Project[], users: User[], tasks: Task[] }) {
 
   const enrichedProjects: EnrichedProject[] = useMemo(() => {
+    if (!projects || !users) return [];
     return projects
         .filter(p => p.status === 'activo')
         .map(project => ({
