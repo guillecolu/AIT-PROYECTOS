@@ -124,7 +124,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
           const hoy = new Date();
           const comienzoHoy = startOfDay(hoy);
-          const finalHoy = endOfDay(hoy);
           const proximasLimite = addDays(comienzoHoy, 3);
 
           const isDone = (task: Task) => task.status === 'finalizada';
@@ -307,14 +306,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const getTasksByProjectId = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
   const getUsers = useCallback(() => users, [users]);
 
-  const recalculateProjectProgress = useCallback((projectId: string, allTasks: Task[], currentProjects: Project[]) => {
-    const projectToRecalculate = currentProjects.find(p => p.id === projectId);
-    if (!projectToRecalculate) return currentProjects;
+  const recalculateProjectProgress = useCallback((projectId: string, allTasks: Task[]) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
 
     const projectTasks = allTasks.filter(t => t.projectId === projectId);
     
     // Create a deep copy to avoid direct mutation
-    let projectToUpdate = JSON.parse(JSON.stringify(projectToRecalculate));
+    let projectToUpdate = JSON.parse(JSON.stringify(project));
 
     const updatedParts = (projectToUpdate.parts || []).map((part: Part) => {
         const partTasks = projectTasks.filter(t => t.partId === part.id);
@@ -336,8 +335,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     
     const updatedProject = { ...projectToUpdate, parts: updatedParts, progress: newProjectProgress };
     
-    return currentProjects.map(p => p.id === projectId ? updatedProject : p);
-}, []);
+    setProjects(currentProjects => currentProjects.map(p => p.id === projectId ? updatedProject : p));
+    
+    // Save the updated project to Firestore
+    const projectForDb = JSON.parse(JSON.stringify(updatedProject));
+    setDoc(doc(db, "projects", projectId), projectForDb);
+}, [projects]);
 
 
   const saveProject = async (projectData: Omit<Project, 'id'> | Project): Promise<Project> => {
@@ -376,36 +379,33 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   
   const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
     let updatedTask: Task;
+    let newTasks: Task[];
+
     if ('id' in taskData) {
         updatedTask = { ...taskData };
+        setTasks(currentTasks => {
+            const taskIndex = currentTasks.findIndex(t => t.id === updatedTask.id);
+            if (taskIndex > -1) {
+                newTasks = [...currentTasks];
+                newTasks[taskIndex] = updatedTask;
+            } else {
+                newTasks = [...currentTasks, updatedTask];
+            }
+            // Trigger project progress recalculation after tasks state is updated
+            recalculateProjectProgress(updatedTask.projectId, newTasks);
+            return newTasks;
+        });
     } else {
         const newId = doc(collection(db, "tasks")).id;
         updatedTask = { ...taskData, id: newId } as Task;
+        setTasks(currentTasks => {
+            newTasks = [...currentTasks, updatedTask];
+            // Trigger project progress recalculation
+            recalculateProjectProgress(updatedTask.projectId, newTasks);
+            return newTasks;
+        });
     }
     
-    setTasks(currentTasks => {
-        let newTasks;
-        const taskIndex = currentTasks.findIndex(t => t.id === updatedTask.id);
-        if (taskIndex > -1) {
-            newTasks = [...currentTasks];
-            newTasks[taskIndex] = updatedTask;
-        } else {
-            newTasks = [...currentTasks, updatedTask];
-        }
-        
-        setProjects(currentProjects => {
-             const updatedProjects = recalculateProjectProgress(updatedTask.projectId, newTasks, currentProjects);
-             const projectToSave = updatedProjects.find(p => p.id === updatedTask.projectId);
-             if (projectToSave) {
-                 const projectForDb = JSON.parse(JSON.stringify(projectToSave));
-                 setDoc(doc(db, "projects", projectToSave.id), projectForDb);
-             }
-             return updatedProjects;
-        });
-
-        return newTasks;
-    });
-
     const taskForDb = JSON.parse(JSON.stringify(updatedTask));
     await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
 
@@ -420,17 +420,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     setTasks(currentTasks => {
         const newTasks = currentTasks.filter(t => t.id !== taskId);
-        
-        setProjects(currentProjects => {
-            const updatedProjects = recalculateProjectProgress(taskToDelete.projectId, newTasks, currentProjects);
-            const projectToSave = updatedProjects.find(p => p.id === taskToDelete.projectId);
-            if (projectToSave) {
-                const projectForDb = JSON.parse(JSON.stringify(projectToSave));
-                setDoc(doc(db, "projects", projectToSave.id), projectForDb);
-            }
-            return updatedProjects;
-       });
-
+        recalculateProjectProgress(taskToDelete.projectId, newTasks);
         return newTasks;
     });
   };
@@ -550,3 +540,4 @@ export const useData = () => {
     
 
     
+

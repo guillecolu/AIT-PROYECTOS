@@ -683,7 +683,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         const updatedProject = { ...internalProject, notes: updatedNotes };
         setInternalProject(updatedProject); // Optimistic update
         await saveProject(updatedProject);
-    }
+    };
 
     const handleAddDepartment = async (partId: string, stageName: TaskComponent) => {
         const updatedParts = internalProject.parts.map(part => {
