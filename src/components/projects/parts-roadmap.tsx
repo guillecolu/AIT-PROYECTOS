@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Part } from '@/lib/types';
+import type { Part, Task } from '@/lib/types';
 import { Folder, FolderOpen, FolderPlus, Trash2, GripVertical } from 'lucide-react';
 import EditableField from '../ui/editable-field';
 import { Button } from '../ui/button';
@@ -30,6 +30,7 @@ interface PartsRoadmapProps {
     parts: Part[];
     color?: string;
   };
+  tasks: Task[];
   onPartSelect: (part: Part) => void;
   selectedPart: Part | null;
   onPartNameChange: (partId: string, newName: string) => void;
@@ -38,10 +39,13 @@ interface PartsRoadmapProps {
   onPartOrderChange: (parts: Part[]) => void;
 }
 
-const PartCard = ({ part, onClick, isSelected, onNameChange, onDelete }: { part: Part; onClick: () => void; isSelected: boolean, onNameChange: (newName: string) => void; onDelete: () => void; }) => {
+const PartCard = ({ part, tasks, onClick, isSelected, onNameChange, onDelete }: { part: Part; tasks: Task[]; onClick: () => void; isSelected: boolean, onNameChange: (newName: string) => void; onDelete: () => void; }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const totalStages = part.stages.length;
-  const completedStages = part.stages.filter(s => s.porcentaje === 100).length;
+  
+  const partTasks = tasks.filter(t => t.partId === part.id);
+  const totalTasks = partTasks.length;
+  const completedTasks = partTasks.filter(t => t.status === 'finalizada').length;
+  
   const progress = part.progress || 0;
   
    const {
@@ -83,7 +87,7 @@ const PartCard = ({ part, onClick, isSelected, onNameChange, onDelete }: { part:
                 className="text-base font-bold"
                 onEditingChange={setIsEditing}
                 />
-                <p className="text-sm text-muted-foreground">{completedStages} de {totalStages} áreas completadas</p>
+                <p className="text-sm text-muted-foreground">{completedTasks} de {totalTasks} tareas completadas</p>
                 <div className="flex items-center gap-2 mt-2">
                 <div className="w-full bg-muted rounded-full h-1.5">
                     <div className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }}></div>
@@ -124,7 +128,7 @@ const PartCard = ({ part, onClick, isSelected, onNameChange, onDelete }: { part:
   );
 };
 
-export default function PartsRoadmap({ project, onPartSelect, selectedPart, onPartNameChange, onAddPart, onPartDelete, onPartOrderChange }: PartsRoadmapProps) {
+export default function PartsRoadmap({ project, tasks, onPartSelect, selectedPart, onPartNameChange, onAddPart, onPartDelete, onPartOrderChange }: PartsRoadmapProps) {
 
    const sensors = useSensors(
         useSensor(PointerSensor),
@@ -173,6 +177,7 @@ export default function PartsRoadmap({ project, onPartSelect, selectedPart, onPa
                         <PartCard
                         key={part.id}
                         part={part}
+                        tasks={tasks}
                         onClick={() => onPartSelect(part)}
                         isSelected={selectedPart?.id === part.id}
                         onNameChange={(newName) => onPartNameChange(part.id, newName)}
