@@ -309,16 +309,24 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                                     ))}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
-                                                             {task.status === 'pendiente' ? (
-                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'en-progreso')}>
-                                                                    <Play className="h-4 w-4 mr-2 text-yellow-600" />
-                                                                    Pendiente
-                                                                </Button>
+                                                            {task.status === 'pendiente' || task.status === 'en-progreso' ? (
+                                                                <>
+                                                                    {task.status === 'pendiente' ? (
+                                                                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'en-progreso')} className="text-yellow-600 hover:text-yellow-700">
+                                                                            <Play className="h-4 w-4 mr-2" />
+                                                                            Pendiente
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'pendiente')} className="text-blue-600 hover:text-blue-700">
+                                                                            <Pause className="h-4 w-4 mr-2" />
+                                                                            En Progreso
+                                                                        </Button>
+                                                                    )}
+                                                                </>
                                                             ) : (
-                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'pendiente')}>
-                                                                    <Pause className="h-4 w-4 mr-2 text-blue-600" />
-                                                                    En Progreso
-                                                                </Button>
+                                                                 <Badge variant="secondary" className={cn("capitalize text-xs border-0", statusColorClasses[task.status])}>
+                                                                    {task.status.replace('-', ' ')}
+                                                                </Badge>
                                                             )}
                                                         </>
                                                     )}
