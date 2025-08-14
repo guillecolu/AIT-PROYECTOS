@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, ChangeEvent } from 'react';
-import type { User, Project, Task, TaskStatus, TaskPriority, UserRole } from '@/lib/types';
+import type { User, Project, Task, TaskStatus, TaskPriority, UserRole, CommonTask } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -150,7 +150,7 @@ const SortableUserItem = ({ user, tasks, isSelected, onSelect, onEdit, onDelete 
 
 
 export default function TeamTasksClient(props: TeamTasksClientProps) {
-    const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading, userRoles } = useData();
+    const { users, setUsers, projects, tasks, saveTask, saveUser, deleteUser, loading, userRoles, commonTasks } = useData();
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -467,6 +467,7 @@ export default function TeamTasksClient(props: TeamTasksClientProps) {
                 projects={projects}
                 defaultComponent={null}
                 defaultAssigneeId={selectedUser.id}
+                commonTasks={commonTasks}
             /> }
             <UserFormModal
                 isOpen={isUserModalOpen}
