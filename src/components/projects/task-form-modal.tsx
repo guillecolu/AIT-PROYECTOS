@@ -16,12 +16,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, PlusCircle, Save } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2 } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 
 
 const taskSchema = z.object({
@@ -54,11 +54,12 @@ interface TaskFormModalProps {
 }
 
 export default function TaskFormModal({ isOpen, onClose, onSave, task, users, projects = [], project, defaultComponent, defaultAssigneeId, defaultPartId, prefillData, commonTasks = [] }: TaskFormModalProps) {
-  const { saveCommonTask } = useData();
+  const { saveCommonTask, deleteCommonTask } = useData();
   const { toast } = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const [isAddCommonTaskOpen, setIsAddCommonTaskOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<CommonTask | null>(null);
 
   const form = useForm<z.infer<typeof taskSchema>>({
     resolver: zodResolver(taskSchema),
@@ -166,6 +167,18 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
             form.setValue('estimatedTime', selectedCommonTask.estimatedTime);
         }
     }
+
+    const handleDeleteClick = (e: React.MouseEvent, commonTask: CommonTask) => {
+        e.stopPropagation();
+        setTaskToDelete(commonTask);
+    }
+
+    const confirmDeleteCommonTask = async () => {
+        if (!taskToDelete) return;
+        await deleteCommonTask(taskToDelete.id);
+        toast({ title: "Tarea común eliminada" });
+        setTaskToDelete(null);
+    }
     
     const partsForSelectedProject = projects.find(p => p.id === selectedProjectId)?.parts || [];
     
@@ -204,7 +217,17 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                                 </SelectTrigger>
                                 <SelectContent>
                                     {commonTasks.map(ct => (
-                                        <SelectItem key={ct.id} value={ct.id}>{ct.title}</SelectItem>
+                                        <div key={ct.id} className="flex items-center justify-between pr-2 group">
+                                            <SelectItem value={ct.id} className="flex-grow">{ct.title}</SelectItem>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100"
+                                                onClick={(e) => handleDeleteClick(e, ct)}
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
                                     ))}
                                     <SelectSeparator />
                                     <SelectItem value="__add_new__">
@@ -445,6 +468,10 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                 </div>
              </div>
             <DialogFooter className="pt-8">
+                 <Button type="button" variant="outline" onClick={() => setIsAddCommonTaskOpen(true)}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar como Tarea Común
+                </Button>
                 <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
                 <Button type="submit">Guardar Tarea</Button>
             </DialogFooter>
@@ -464,6 +491,21 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleSaveAsCommonTask}>Guardar Tarea Común</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+     <AlertDialog open={!!taskToDelete} onOpenChange={() => setTaskToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción eliminará la tarea común "<span className="font-bold">{taskToDelete?.title}</span>" de forma permanente. No se puede deshacer.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteCommonTask}>Sí, eliminar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>

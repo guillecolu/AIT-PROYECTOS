@@ -24,7 +24,7 @@ interface DataContextProps {
   getUsers: () => User[];
   saveProject: (project: Omit<Project, 'id'> | Project) => Promise<Project>;
   deleteProject: (projectId: string) => Promise<void>;
-  saveTask: (task: Omit<Task, 'id'> | Task, attachment?: File) => Promise<Task>;
+  saveTask: (task: Omit<Task, 'id'> | Task) => Promise<Task>;
   deleteTask: (taskId: string) => Promise<void>;
   saveUser: (user: Omit<User, 'id'> | User) => Promise<User>;
   deleteUser: (userId: string) => Promise<void>;
@@ -35,6 +35,7 @@ interface DataContextProps {
   deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
+  deleteCommonTask: (taskId: string) => Promise<void>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
@@ -193,6 +194,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     await setDoc(newDocRef, task);
     setCommonTasks(prev => [...prev, task]);
   }, [commonTasks]);
+
+  const deleteCommonTask = async (taskId: string) => {
+    await deleteDoc(doc(db, "commonTasks", taskId));
+    setCommonTasks(prev => prev.filter(t => t.id !== taskId));
+  };
   
   const addPartToProject = async (projectId: string, partName?: string): Promise<Part | null> => {
       const project = projects.find(p => p.id === projectId);
@@ -349,7 +355,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
   
-  const saveTask = async (taskData: Omit<Task, 'id'> | Task, attachment?: File): Promise<Task> => {
+  const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
     let updatedTask: Task;
     if ('id' in taskData) {
         updatedTask = { ...taskData };
@@ -358,13 +364,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         updatedTask = { ...taskData, id: newId } as Task;
     }
     
-    if (attachment) {
-        const filePath = `uploads/tasks/${updatedTask.projectId}/${updatedTask.id}/${attachment.name}`;
-        const downloadURL = await uploadFile(attachment, filePath);
-        updatedTask.attachmentURL = downloadURL;
-        updatedTask.attachmentName = attachment.name;
-    }
-
     setTasks(currentTasks => {
         let newTasks;
         const taskIndex = currentTasks.findIndex(t => t.id === updatedTask.id);
@@ -498,6 +497,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     deleteAttachmentFromPart,
     saveCommonDepartment,
     saveCommonTask,
+    deleteCommonTask,
     saveAppConfig,
     setProjects,
     setUsers,
@@ -518,5 +518,6 @@ export const useData = () => {
 
 
     
+
 
 
