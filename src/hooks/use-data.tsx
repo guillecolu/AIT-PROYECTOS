@@ -311,8 +311,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         
         let newPartProgress = 0;
         if (partTasks.length > 0) {
-            const totalPartProgress = partTasks.reduce((acc, task) => acc + task.progress, 0);
-            newPartProgress = Math.round(totalPartProgress / partTasks.length);
+            const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
+            newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
         }
         
         return { ...part, progress: newPartProgress };
@@ -535,6 +535,9 @@ export const useData = () => {
 
 
 
+
+
+    
 
 
     
