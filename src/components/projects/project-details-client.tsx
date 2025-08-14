@@ -220,8 +220,8 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
         <div className="space-y-6">
             <div className="space-y-8">
                 {partStages.map(stage => {
-                    const stageTasks = partTasks.filter(t => t.component === stage.nombre);
                     const colors = areaColors?.find(c => c.name === stage.nombre) || areaColors?.find(c => c.name === 'default');
+                    const stageTasks = partTasks.filter(t => t.component === stage.nombre);
 
                     if (!colors) return null;
 
@@ -239,7 +239,6 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     </h3>
                                     <AreaColorPicker
                                         areaName={stage.nombre}
-                                        currentColor={colors}
                                         onSave={saveAreaColor}
                                     />
                                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" style={{ color: colors.textColor }} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>

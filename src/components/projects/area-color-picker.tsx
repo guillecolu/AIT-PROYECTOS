@@ -11,27 +11,40 @@ import type { AreaColor } from '@/lib/types';
 import { Label } from '../ui/label';
 import { defaultAreaColors } from '@/lib/colors';
 import { ScrollArea } from '../ui/scroll-area';
+import { useData } from '@/hooks/use-data';
 
 interface AreaColorPickerProps {
     areaName: string;
-    currentColor: AreaColor;
     onSave: (colorData: AreaColor) => Promise<void>;
 }
 
-export default function AreaColorPicker({ areaName, currentColor, onSave }: AreaColorPickerProps) {
-    const [bgColor, setBgColor] = useState(currentColor.bgColor);
-    const [textColor, setTextColor] = useState(currentColor.textColor);
+export default function AreaColorPicker({ areaName, onSave }: AreaColorPickerProps) {
+    const { areaColors } = useData();
+    const currentColor = areaColors?.find(c => c.name === areaName) || areaColors?.find(c => c.name === 'default');
+
+    const [bgColor, setBgColor] = useState(currentColor?.bgColor || '');
+    const [textColor, setTextColor] = useState(currentColor?.textColor || '');
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        setBgColor(currentColor.bgColor);
-        setTextColor(currentColor.textColor);
-    }, [currentColor, isOpen]);
+        if (isOpen) {
+            const current = areaColors?.find(c => c.name === areaName) || areaColors?.find(c => c.name === 'default');
+            if (current) {
+                setBgColor(current.bgColor);
+                setTextColor(current.textColor);
+            }
+        }
+    }, [areaName, isOpen, areaColors]);
     
+    if (!currentColor) {
+        return null; // Should not happen if areaColors is loaded
+    }
+
     const handleSave = (e: React.MouseEvent) => {
         e.stopPropagation();
         const newColorData: AreaColor = {
             ...currentColor,
+            name: areaName, // Ensure we are saving for the correct area
             bgColor,
             textColor,
         };
