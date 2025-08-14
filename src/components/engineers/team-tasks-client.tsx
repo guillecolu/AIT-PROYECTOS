@@ -65,7 +65,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 
-const ClientSideDate = ({ dateString }: { dateString: string }) => {
+function ClientSideDate({ dateString }: { dateString: string }){
     const [formattedDate, setFormattedDate] = useState('');
 
     useEffect(() => {

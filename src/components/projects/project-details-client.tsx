@@ -75,13 +75,13 @@ const statusColorClasses: Record<TaskStatus, string> = {
     finalizada: 'bg-green-100 text-green-800',
 };
 
-const ClientSideDate = ({ dateString, format = 'dd/MM/yyyy' }: { dateString: string, format?: 'dd/MM/yyyy' | 'PPpp' }) => {
+function ClientSideDate({ dateString, format = 'dd/MM/yyyy' }: { dateString: string, format?: 'dd/MM/yyyy' | 'PPpp' }){
     const [formattedDate, setFormattedDate] = useState('');
-    const { format: formatDate, es } = require('date-fns');
 
     useEffect(() => {
+        const { format: formatDate, es } = require('date-fns');
         setFormattedDate(formatDate(new Date(dateString), format, { locale: es }));
-    }, [dateString, format, formatDate, es]);
+    }, [dateString, format]);
 
     return <>{formattedDate}</>;
 };
