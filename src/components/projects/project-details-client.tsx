@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -31,7 +30,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import TaskFormModal from '@/components/projects/task-form-modal';
 import TaskNotesModal from '@/components/projects/task-notes-modal';
@@ -50,6 +48,7 @@ import { generatePendingTasksPdf } from '@/lib/pdf-generator';
 import ProjectFiles from './project-files';
 import ProjectAlerts from './project-alerts';
 import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -881,10 +880,10 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                         <div className="space-y-1">
                             <div className="group flex items-center gap-2">
                                 <h1 className="font-headline text-3xl">{internalProject.name}</h1>
+                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange({ color })} triggerClassName='h-8 w-8' />
                              </div>
                              <div className="group flex items-center gap-2">
                                 <p className="text-lg text-muted-foreground">{internalProject.client}</p>
-                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange({ color })} triggerClassName='h-8 w-8' />
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
@@ -1043,15 +1042,38 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 users={users}
             />
             <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className="sm:max-w-2xl">
                     <AlertDialogHeader>
                     <AlertDialogTitle>Resumen Diario Generado por IA</AlertDialogTitle>
                     <AlertDialogDescription>
                         Estas son las recomendaciones y prioridades para el proyecto <strong>{internalProject.name}</strong> para hoy.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <div className="max-h-80 overflow-y-auto p-4 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
-                        {summaryContent}
+                    <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">
+                        <div className="p-4 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
+                            {summaryContent}
+                        </div>
+                        <Accordion type="single" collapsible>
+                            <AccordionItem value="pending-tasks">
+                                <AccordionTrigger>Ver Tareas Pendientes</AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="space-y-2">
+                                        {internalTasks
+                                            .filter(t => t.status !== 'finalizada')
+                                            .sort((a,b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+                                            .map(task => (
+                                            <div key={task.id} className="flex justify-between items-center text-sm p-2 bg-background rounded-md">
+                                                <div>
+                                                    <p className="font-medium">{task.title}</p>
+                                                    <p className="text-xs text-muted-foreground">{users.find(u => u.id === task.assignedToId)?.name || 'Sin asignar'}</p>
+                                                </div>
+                                                <Badge variant="outline"><ClientSideDate dateString={task.deadline} /></Badge>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </div>
                     <AlertDialogFooter>
                     <AlertDialogAction onClick={() => setIsSummaryDialogOpen(false)}>Entendido</AlertDialogAction>
@@ -1061,3 +1083,5 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         </div>
     );
 }
+
+    
