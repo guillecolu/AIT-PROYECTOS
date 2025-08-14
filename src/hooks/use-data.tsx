@@ -120,29 +120,46 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setUserRoles(userRolesData);
       }
       
-      // Simulate backend alert generation for each project
+      // Recalculate progress and alerts for each project
       projectsData = projectsData.map(project => {
           const projectTasks = tasksData.filter(task => task.projectId === project.id);
           const isDone = (task: Task) => task.status === 'finalizada';
           const hoy = new Date();
           const comienzoHoy = startOfDay(hoy);
           const finalManana = endOfDay(addDays(hoy, 1));
-
-
+  
+          // --- Recalculate Progress ---
+          const updatedParts = (project.parts || []).map((part: Part) => {
+              const partTasks = projectTasks.filter(t => t.partId === part.id);
+              let newPartProgress = 0;
+              if (partTasks.length > 0) {
+                  const totalTaskProgress = partTasks.reduce((acc, task) => acc + (task.progress || 0), 0);
+                  newPartProgress = Math.round(totalTaskProgress / partTasks.length);
+              }
+              return { ...part, progress: newPartProgress };
+          });
+  
+          let newProjectProgress = 0;
+          if (updatedParts.length > 0) {
+              const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
+              newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
+          }
+  
+          // --- Recalculate Alerts ---
           const atrasadas = projectTasks.filter(t => {
-            if (isDone(t) || !t.deadline) return false;
-            return isBefore(new Date(t.deadline), comienzoHoy);
+              if (isDone(t) || !t.deadline) return false;
+              return isBefore(new Date(t.deadline), comienzoHoy);
           });
           
           const proximas = projectTasks.filter(t => {
-            if (isDone(t) || !t.deadline) return false;
-            const deadlineDate = new Date(t.deadline);
-            return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
+              if (isDone(t) || !t.deadline) return false;
+              const deadlineDate = new Date(t.deadline);
+              return deadlineDate >= comienzoHoy && deadlineDate <= finalManana;
           });
-
+  
           const sinAsignar = projectTasks.filter(t => !t.assignedToId && !isDone(t));
           const bloqueadas = projectTasks.filter(t => t.blocked === true && !isDone(t));
-
+  
           const alerts: ProjectAlerts = {
               id: hoy.toISOString().split('T')[0].replace(/-/g, ''),
               projectId: project.id,
@@ -160,26 +177,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                   ...bloqueadas.map(t => ({type: "BLOQUEADA", taskId: t.id} as AlertItem)),
               ]
           };
-          
-          // Recalculate progress based on fetched tasks
-          const projectTasksForProgress = tasksData.filter(t => t.projectId === project.id);
-          const updatedParts = (project.parts || []).map((part: Part) => {
-            const partTasks = projectTasksForProgress.filter(t => t.partId === part.id);
-            let newPartProgress = 0;
-            if (partTasks.length > 0) {
-                const completedTasks = partTasks.filter(task => task.status === 'finalizada').length;
-                newPartProgress = Math.round((completedTasks / partTasks.length) * 100);
-            }
-            return { ...part, progress: newPartProgress };
-          });
-
-          let newProjectProgress = 0;
-            if (updatedParts.length > 0) {
-                const totalProjectProgress = updatedParts.reduce((acc: number, part: Part) => acc + (part.progress || 0), 0);
-                newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
-            }
-
-
+  
           return { ...project, alerts, parts: updatedParts, progress: newProjectProgress };
       });
 
@@ -384,6 +382,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         return [...currentTasks, updatedTask];
     });
 
+    // After saving a task, refetch all data to ensure consistency.
+    // This is a simple approach to avoid complex state management.
+    await fetchData();
+
     return updatedTask;
   };
   
@@ -514,6 +516,9 @@ export const useData = () => {
     
 
 
+
+
+    
 
 
     
