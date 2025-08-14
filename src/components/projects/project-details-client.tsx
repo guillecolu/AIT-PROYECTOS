@@ -881,10 +881,10 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                         <div className="space-y-1">
                             <div className="group flex items-center gap-2">
                                 <h1 className="font-headline text-3xl">{internalProject.name}</h1>
-                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange({ color })} triggerClassName='h-8 w-8' />
                              </div>
-                             <div className="group">
+                             <div className="group flex items-center gap-2">
                                 <p className="text-lg text-muted-foreground">{internalProject.client}</p>
+                                <ProjectColorPicker project={internalProject} onColorChange={(color) => handleProjectFieldChange({ color })} triggerClassName='h-8 w-8' />
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
