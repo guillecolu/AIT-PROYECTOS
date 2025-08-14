@@ -328,12 +328,6 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                             <Pencil className="mr-2 h-4 w-4" />
                                                             Editar Tarea Completa
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                             <a href={task.attachmentURL} target="_blank" rel="noopener noreferrer" className={!task.attachmentURL ? 'pointer-events-none text-muted-foreground' : ''}>
-                                                                <Paperclip className="mr-2 h-4 w-4" />
-                                                                Ver Adjunto
-                                                            </a>
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => onTaskDelete(task.id)} className="text-destructive">
                                                             <Trash2 className="mr-2 h-4 w-4" />
@@ -618,7 +612,6 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
 
     const handleTaskUpdate = async (updatedTaskData: Task | Omit<Task, 'id'>) => {
-        // Optimistically update UI
         if ('id' in updatedTaskData) {
             setInternalTasks(prevTasks => prevTasks.map(t => t.id === updatedTaskData.id ? { ...t, ...updatedTaskData } : t));
         } else {
@@ -628,9 +621,11 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         
         await saveTask(updatedTaskData);
         
-        // After DB save, get the latest project state
-        const updatedProject = await saveProject(internalProject); // This might be redundant if saveTask returns it
-        setInternalProject(updatedProject);
+        // This will trigger a re-fetch or re-calculation in useData hook
+        const latestProjectState = projects.find(p => p.id === initialProject.id);
+        if (latestProjectState) {
+          setInternalProject(latestProjectState);
+        }
     };
 
     const handleSignTask = (task: Task, userId: string) => {
@@ -660,11 +655,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     };
 
     const handleTaskDelete = async (taskId: string) => {
-         // Optimistic UI update
         setInternalTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
         await deleteTask(taskId);
-        const updatedProject = await saveProject(internalProject); // Re-fetch or re-calculate
-        setInternalProject(updatedProject);
+        // This will trigger a re-fetch or re-calculation in useData hook
+        const latestProjectState = projects.find(p => p.id === initialProject.id);
+        if (latestProjectState) {
+          setInternalProject(latestProjectState);
+        }
     };
 
     const handlePartSelect = (part: Part) => {
