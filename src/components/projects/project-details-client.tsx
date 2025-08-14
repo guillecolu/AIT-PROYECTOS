@@ -53,6 +53,7 @@ import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
 import type { DailySummaryOutput } from '@/ai/flows/generate-daily-summary.types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
+import { areaColors } from '@/lib/colors';
 
 
 const componentIcons: Record<TaskComponent, React.ReactNode> = {
@@ -217,11 +218,12 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
             <div className="space-y-8">
                 {partStages.map(stage => {
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
+                    const colors = areaColors[stage.nombre as keyof typeof areaColors] || areaColors.default;
                     return (
-                        <div key={stage.nombre}>
+                        <div key={stage.nombre} className={cn("rounded-lg border-t-4 p-4", colors.borderColor, colors.bgColor)}>
                              <div className="flex items-center justify-between mb-2">
                                 <div className="group flex items-center gap-2">
-                                     <h3 className="font-semibold text-lg flex items-center capitalize">
+                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize", colors.textColor)}>
                                         {componentIcons[stage.nombre as TaskComponent] || <Wrench className="h-4 w-4 mr-2" />}
                                         <EditableField
                                             initialValue={stage.nombre}
@@ -254,7 +256,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                 </TableHeader>
                                 <TableBody>
                                     {stageTasks.map(task => (
-                                        <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer">
+                                        <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer bg-card/50 hover:bg-card/90">
                                             <TableCell>{task.title}</TableCell>
                                             <TableCell>{getUserName(task.assignedToId)}</TableCell>
                                             <TableCell>
@@ -341,7 +343,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                     ))}
                                     {stageTasks.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
+                                            <TableCell colSpan={8} className="text-center text-muted-foreground py-10 bg-card/50">
                                                 Aún no hay tareas para esta área.
                                             </TableCell>
                                         </TableRow>
@@ -375,7 +377,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                 <DropdownMenuLabel>Áreas Comunes</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 {allCommonDepartments.map(stage => (
-                                    <DropdownMenuItem key={stage} onSelect={() => onDepartmentAdd(selectedPart.id, stage)}>
+                                    <DropdownMenuItem key={stage} onSelect={() => onDepartmentAdd(selectedPart.id, stage as TaskComponent)}>
                                         {stage}
                                     </DropdownMenuItem>
                                 ))}
@@ -991,13 +993,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 </div>
                 <TabsContent value="tasks">
                     <Card>
-                        <CardContent className="p-6">
+                        <CardContent className="p-0">
                             <TasksByComponent 
                                 tasks={internalTasks.filter(t => t.partId === selectedPart?.id)} 
                                 users={users} 
                                 project={internalProject}
-                                commonTasks={commonTasks}
-                                commonDepartments={commonDepartments}
+                                commonTasks={commonTasks || []}
+                                commonDepartments={commonDepartments || []}
                                 onTaskUpdate={handleTaskUpdate} 
                                 onTaskDelete={handleTaskDelete}
                                 onSignTask={handleSignTask}

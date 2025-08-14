@@ -5,24 +5,12 @@ import type { UserOptions } from "jspdf-autotable";
 import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Project, Task, User, Part } from './types';
+import { areaColors } from "./colors";
 
 // Extend jsPDF with autoTable
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: UserOptions) => jsPDF;
 }
-
-const areaColors: Record<string, { fillColor: string; textColor: string }> = {
-    'Diseño': { fillColor: '#D1FAE5', textColor: '#065F46' }, // Green-100, Green-800
-    'Corte': { fillColor: '#FEF3C7', textColor: '#92400E' }, // Amber-100, Amber-800
-    'Soldadura': { fillColor: '#FEE2E2', textColor: '#991B1B' }, // Red-100, Red-800
-    'Montaje': { fillColor: '#DBEAFE', textColor: '#1E40AF' }, // Blue-100, Blue-800
-    'Estructura': { fillColor: '#E0E7FF', textColor: '#3730A3' }, // Indigo-100, Indigo-800
-    'Cableado': { fillColor: '#F3E8FF', textColor: '#5B21B6' }, // Purple-100, Purple-800
-    'Eléctrico': { fillColor: '#F3E8FF', textColor: '#5B21B6' }, // Purple-100, Purple-800
-    'Programación': { fillColor: '#E0F2FE', textColor: '#0369A1' }, // Light Blue-100, Light Blue-700
-    'Pruebas': { fillColor: '#D1FAE5', textColor: '#065F46' }, // Green-100, Green-800
-    'default': { fillColor: '#E5E7EB', textColor: '#1F2937' } // Gray-200, Gray-800
-};
 
 export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null) => {
     // Dynamic imports for client-side libraries
@@ -133,8 +121,8 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
                 content: deptName,
                 colSpan: 8,
                 styles: {
-                    fillColor: colors.fillColor,
-                    textColor: colors.textColor,
+                    fillColor: colors.pdfFillColor,
+                    textColor: colors.pdfTextColor,
                     fontStyle: 'bold',
                     halign: 'left'
                 }
