@@ -220,10 +220,10 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
                     const colors = areaColors[stage.nombre as keyof typeof areaColors] || areaColors.default;
                     return (
-                        <div key={stage.nombre} className={cn("rounded-lg border-t-4 p-4", colors.borderColor, colors.bgColor)}>
-                             <div className="flex items-center justify-between mb-2">
+                        <div key={stage.nombre} className={cn("rounded-lg p-4 space-y-4", colors.bgColor, colors.textColor)}>
+                             <div className="flex items-center justify-between">
                                 <div className="group flex items-center gap-2">
-                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize", colors.textColor)}>
+                                     <h3 className={cn("font-semibold text-lg flex items-center capitalize")}>
                                         {componentIcons[stage.nombre as TaskComponent] || <Wrench className="h-4 w-4 mr-2" />}
                                         <EditableField
                                             initialValue={stage.nombre}
@@ -231,12 +231,10 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             label="Nombre del Área"
                                         />
                                     </h3>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
-                                        <Trash2 className="h-4 w-4 text-destructive/70 hover:text-destructive" />
+                                    <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100", colors.textColor)} onClick={() => onDepartmentDelete(selectedPart!.id, stage.nombre)}>
+                                        <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            </div>
-                             <div className="flex justify-start mb-4 gap-2">
                                 <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Añadir Tarea
@@ -244,19 +242,19 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                             </div>
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Tarea</TableHead>
-                                        <TableHead>Asignado a</TableHead>
-                                        <TableHead>Estado</TableHead>
-                                        <TableHead>Entrega</TableHead>
-                                        <TableHead>Tiempo (Est/Real)</TableHead>
-                                        <TableHead>Acciones</TableHead>
+                                    <TableRow className="border-b-foreground/10">
+                                        <TableHead className={cn(colors.textColor)}>Tarea</TableHead>
+                                        <TableHead className={cn(colors.textColor)}>Asignado a</TableHead>
+                                        <TableHead className={cn(colors.textColor)}>Estado</TableHead>
+                                        <TableHead className={cn(colors.textColor)}>Entrega</TableHead>
+                                        <TableHead className={cn(colors.textColor)}>Tiempo (Est/Real)</TableHead>
+                                        <TableHead className={cn(colors.textColor)}>Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {stageTasks.map(task => (
-                                        <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer bg-card/50 hover:bg-card/90">
+                                        <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer bg-card/50 hover:bg-card/90 border-b-foreground/10">
                                             <TableCell>{task.title}</TableCell>
                                             <TableCell>{getUserName(task.assignedToId)}</TableCell>
                                             <TableCell>
@@ -342,7 +340,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         </TableRow>
                                     ))}
                                     {stageTasks.length === 0 && (
-                                        <TableRow>
+                                        <TableRow className="border-b-foreground/10">
                                             <TableCell colSpan={8} className="text-center text-muted-foreground py-10 bg-card/50">
                                                 Aún no hay tareas para esta área.
                                             </TableCell>
