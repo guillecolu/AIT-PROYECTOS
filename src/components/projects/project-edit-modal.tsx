@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -58,7 +59,7 @@ export default function ProjectEditModal({ isOpen, onClose, onSave, project, use
         }
     }, [project, isOpen, form]);
 
-    const managers = users.filter(u => u.role === 'Oficina Técnica' || u.role === 'Dirección de Proyecto');
+    const managers = users;
 
     const onSubmit = async (data: ProjectEditFormData) => {
         setIsLoading(true);
@@ -114,7 +115,16 @@ export default function ProjectEditModal({ isOpen, onClose, onSave, project, use
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
                                     </FormControl></PopoverTrigger>
-                                    <PopoverContent align="start" className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es}/></PopoverContent>
+                                    <PopoverContent align="start" className="w-auto p-0">
+                                        <Calendar 
+                                            mode="single" 
+                                            selected={field.value} 
+                                            onSelect={field.onChange} 
+                                            initialFocus 
+                                            locale={es}
+                                            weekStartsOn={1}
+                                        />
+                                    </PopoverContent>
                                 </Popover>
                                 <FormMessage/>
                                 </FormItem>
@@ -129,7 +139,16 @@ export default function ProjectEditModal({ isOpen, onClose, onSave, project, use
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                         </Button>
                                     </FormControl></PopoverTrigger>
-                                    <PopoverContent align="start" className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es}/></PopoverContent>
+                                    <PopoverContent align="start" className="w-auto p-0">
+                                        <Calendar 
+                                            mode="single" 
+                                            selected={field.value} 
+                                            onSelect={field.onChange} 
+                                            initialFocus 
+                                            locale={es}
+                                            weekStartsOn={1}
+                                        />
+                                    </PopoverContent>
                                 </Popover>
                                 <FormMessage/>
                                 </FormItem>

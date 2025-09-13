@@ -1,20 +1,82 @@
 
-
-import { format, differenceInDays, isBefore, endOfWeek } from 'date-fns';
+import { format, differenceInDays, isBefore, endOfWeek, startOfDay, endOfDay, subDays, addDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Project, Task, User, Part, AreaColor } from './types';
+import type { Project, Task, User, Part, AreaColor, TaskStatus } from './types';
+import type { PdfSelection } from '@/components/projects/pdf-options-modal';
+import { toast } from '@/hooks/use-toast';
+import type { jsPDF } from 'jspdf';
+import type { UserOptions } from 'jspdf-autotable';
+
 
 // Extend jsPDF with autoTable
 interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: UserOptions) => jsPDF;
+  autoTable: (options: UserOptions) => jsPDFWithAutoTable;
 }
 
-export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null, areaColors: AreaColor[] | null) => {
-    // Dynamic imports for client-side libraries
+const addPdfFooter = async (doc: jsPDFWithAutoTable, pageNum: number, totalPages: number, logoUrl: string | null) => {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const M = { l: 12, r: 12, t: 18, b: 12 };
+    
+    doc.setFontSize(8);
+    doc.setFont('Inter', 'normal');
+    doc.setTextColor('#6B7280');
+    
+    const footerText = `Página ${pageNum} de ${totalPages}`;
+    doc.text(footerText, pageWidth / 2, pageHeight - M.b + 8, { align: 'center' });
+
+    if (logoUrl) {
+        try {
+            const response = await fetch(logoUrl);
+            const blob = await response.blob();
+            const dataUrl = await new Promise<string>(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+            });
+            doc.addImage(dataUrl, 'PNG', M.l, pageHeight - M.b + 2, 30, 10);
+        } catch (error) {
+            console.error("Error loading logo for PDF footer:", error);
+        }
+    }
+};
+
+const addPdfHeader = async (doc: jsPDFWithAutoTable, project: Project, users: User[]) => {
+    const M = { l: 14, r: 14, t: 18, b: 12 };
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let lastY = M.t;
+    const projectManager = users.find(u => u.id === project.projectManagerId);
+
+    doc.setFont('Inter', 'bold');
+    doc.setFontSize(16);
+    doc.text('Tareas Pendientes', pageWidth / 2, lastY, { align: 'center' });
+    lastY += 8;
+
+    doc.setFont('Inter', 'normal');
+    doc.setFontSize(10);
+    
+    let leftY = lastY;
+    doc.text(`Proyecto: ${project.numero || ''} - ${project.name}`, M.l, leftY);
+    leftY += 5;
+    doc.text(`Cliente: ${project.client}`, M.l, leftY);
+
+    if (projectManager) {
+        let rightY = lastY;
+        doc.text(`Jefe de Proyecto: ${projectManager.name}`, pageWidth - M.r, rightY, { align: 'right' });
+    }
+    
+    const finalY = Math.max(leftY, lastY + (projectManager ? 5 : 0));
+    
+    doc.setDrawColor('#E5E7EB');
+    doc.line(M.l, finalY + 3, pageWidth - M.r, finalY + 3);
+
+    return finalY + 5; // Return the Y position for the table to start
+}
+
+
+export const generateGlobalSummaryPdf = async (projects: Project[], allTasks: Task[], allUsers: User[], logoUrl: string | null) => {
     const { default: jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const { default: qrcode } = await import('qrcode');
-    type UserOptions = import('jspdf-autotable').UserOptions;
     
     const doc = new jsPDF({
         orientation: 'p',
@@ -22,203 +84,334 @@ export const generatePendingTasksPdf = async (project: Project, tasks: Task[], u
         format: 'a4'
     }) as jsPDFWithAutoTable;
 
-    const projectManager = users.find(u => u.id === project.projectManagerId);
-    const pendingTasks = tasks.filter(t => t.status !== 'finalizada');
-    const today = new Date();
-
     const M = { l: 12, r: 12, t: 18, b: 12 };
+    let isFirstPage = true;
+    let finalY = 0;
 
-    const addHeader = (doc: jsPDFWithAutoTable) => {
-        // Title
-        doc.setFont('Inter', 'bold');
-        doc.setFontSize(16);
-        doc.text('Tareas Pendientes – Taller', doc.internal.pageSize.getWidth() / 2, M.t, { align: 'center' });
+    for (const project of projects) {
+        const projectTasks = allTasks.filter(t => t.projectId === project.id && t.status !== 'finalizada');
+        if (projectTasks.length === 0) continue;
 
-        // Metadata
-        doc.setFont('Inter', 'normal');
-        doc.setFontSize(10);
-        const rightX = doc.internal.pageSize.getWidth() - M.r;
+        const title = "TAREAS PENDIENTES";
+        const subtitle = project.name;
 
-        doc.text(`Proyecto: ${project.numero || ''} - ${project.name}`, M.l, M.t + 8);
-        doc.text(`Cliente: ${project.client}`, M.l, M.t + 13);
-        
-        doc.text(`Responsable: ${projectManager?.name || 'N/A'}`, rightX, M.t + 8, { align: 'right' });
-        doc.text(`Fecha: ${format(today, 'dd/MM/yyyy HH:mm')}`, rightX, M.t + 13, { align: 'right' });
-        doc.setFont('Inter', 'bold');
-        doc.text(`Avance: ${project.progress}%`, rightX, M.t + 18, { align: 'right' });
+        const groupedTasks: Record<string, Record<string, Task[]>> = projectTasks.reduce((acc, task) => {
+            const partName = `${project.parts.find(p => p.id === task.partId)?.name}`.trim() || 'Parte Desconocido';
+            const areaName = task.component || 'Sin Área';
+            if (!acc[partName]) acc[partName] = {};
+            if (!acc[partName][areaName]) acc[partName][areaName] = [];
+            acc[partName][areaName].push(task);
+            return acc;
+        }, {} as Record<string, Record<string, Task[]>>);
 
-
-        // Separator
-        doc.setDrawColor('#E5E7EB');
-        doc.line(M.l, M.t + 22, doc.internal.pageSize.getWidth() - M.r, M.t + 22);
-    };
-
-    const addFooter = async (doc: jsPDFWithAutoTable, pageNum: number, totalPages: number) => {
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const rightX = doc.internal.pageSize.getWidth() - M.r;
-        const qrSize = 20;
-
-        // QR Code
-        const projectUrl = `https://studio--machinetrack-uauk1.us-central1.hosted.app/dashboard/projects/${project.id}`;
-        const qrCodeDataUrl = await qrcode.toDataURL(projectUrl, {
-            errorCorrectionLevel: 'M',
-            margin: 1,
-            width: 80 // Increased width for better quality
+        const tableBody: any[] = [];
+        Object.keys(groupedTasks).sort().forEach(partName => {
+            tableBody.push([{ content: partName, colSpan: 4, styles: { fillColor: '#374151', textColor: '#FFFFFF', fontStyle: 'bold' } }]);
+            const areas = groupedTasks[partName];
+            Object.keys(areas).sort().forEach(areaName => {
+                tableBody.push([{ content: areaName, colSpan: 4, styles: { fillColor: '#E5E7EB', textColor: '#1F2937', fontStyle: 'bold' } }]);
+                areas[areaName].forEach(task => {
+                    const assignedUser = allUsers.find(u => u.id === task.assignedToId);
+                    tableBody.push([
+                        task.title,
+                        assignedUser?.name || 'N/A',
+                        format(new Date(task.deadline), 'dd/MM/yy'),
+                        task.status.replace('-', ' ')
+                    ]);
+                });
+            });
         });
-        doc.addImage(qrCodeDataUrl, 'PNG', rightX - qrSize, pageHeight - M.b - qrSize + 10, qrSize, qrSize);
-    };
+        
+        let startY = isFirstPage ? M.t : finalY + 15;
+        
+        if (!isFirstPage && startY + 20 > doc.internal.pageSize.height) { 
+            doc.addPage();
+            startY = M.t;
+        }
+
+        autoTable(doc, {
+            head: [['Tarea', 'Asignado', 'Entrega', 'Estado']],
+            body: tableBody,
+            startY: startY + 18,
+            margin: { left: M.l, right: M.r },
+            theme: 'grid',
+            headStyles: { fillColor: '#E5E7EB', textColor: '#1F2937', fontStyle: 'bold' },
+            didDrawPage: (data) => {
+                 doc.setFont('Inter', 'bold');
+                doc.setFontSize(16);
+                doc.text(title, doc.internal.pageSize.getWidth() / 2, M.t, { align: 'center' });
+            
+                if (subtitle) {
+                    doc.setFont('Inter', 'normal');
+                    doc.setFontSize(10);
+                    doc.text(subtitle, doc.internal.pageSize.getWidth() / 2, M.t + 6, { align: 'center' });
+                }
+            
+                doc.setDrawColor('#E5E7EB');
+                doc.line(M.l, M.t + 12, doc.internal.pageSize.getWidth() - M.r, M.t + 12);
+            },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 25 },
+            }
+        });
+        
+        finalY = (doc as any).lastAutoTable.finalY;
+        isFirstPage = false;
+    }
     
-    // Summary Cards
-    const tasksThisWeek = pendingTasks.filter(t => isBefore(new Date(t.deadline), endOfWeek(today, { weekStartsOn: 1 })));
-    const delayedTasksCount = pendingTasks.filter(t => isBefore(new Date(t.deadline), today)).length;
-    const estimatedHours = pendingTasks.reduce((acc, t) => acc + t.estimatedTime, 0);
+    const totalPages = (doc.internal as any).pages.length || doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        await addPdfFooter(doc, i, totalPages, logoUrl);
+    }
+    
+    const filename = `Resumen_Global_Pendientes_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(filename);
+};
 
-    const summaryY = M.t + 28;
-    doc.setFontSize(10);
-    doc.setTextColor('#1F2937');
-    const summaryText = `Total: ${pendingTasks.length}    Pendientes semana: ${tasksThisWeek.length}    Retrasadas: ${delayedTasksCount}    Horas pendientes: ${estimatedHours}h`;
-    doc.text(summaryText, M.l, summaryY);
 
-    const getPartName = (partId: string) => project.parts?.find(p => p.id === partId)?.name || 'Parte General';
 
+export const generatePendingTasksPdf = async (project: Project, tasks: Task[], users: User[], logoUrl: string | null, areaColors: AreaColor[] | null, selection: PdfSelection) => {
+    // Dynamic imports for client-side libraries
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    }) as jsPDFWithAutoTable;
+    
+    const pendingTasks = tasks.filter(t => {
+        if (t.status === 'finalizada') return false;
+        const partId = t.partId;
+        const componentName = t.component;
+        return selection[partId] && selection[partId][componentName] === true;
+    });
+
+    if (pendingTasks.length === 0) {
+        toast({
+            variant: "destructive",
+            title: "No hay tareas para exportar",
+            description: "No se encontraron tareas pendientes para las áreas seleccionadas.",
+        });
+        return;
+    }
+
+    const getPartName = (partId: string) => project.parts?.find(p => p.id === partId)?.name || `Parte (ID: ${partId})`;
     const groupedTasks: Record<string, Record<string, Task[]>> = pendingTasks.reduce((acc, task) => {
-        const partName = getPartName(task.partId);
+        const partId = task.partId;
         const deptName = task.component || 'Sin Área';
-
-        if (!acc[partName]) {
-            acc[partName] = {};
-        }
-        if (!acc[partName][deptName]) {
-            acc[partName][deptName] = [];
-        }
-        acc[partName][deptName].push(task);
+        if (!acc[partId]) acc[partId] = {};
+        if (!acc[partId][deptName]) acc[partId][deptName] = [];
+        acc[partId][deptName].push(task);
         return acc;
     }, {} as Record<string, Record<string, Task[]>>);
 
-    let tableBody: any[] = [];
     const priorityOrder = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
     const defaultColor = areaColors?.find(c => c.name === 'default');
-    
-    Object.keys(groupedTasks).sort().forEach(partName => {
-        // Add a group header row for the Part
-        tableBody.push([{
-            content: partName,
-            colSpan: 8,
-            styles: {
-                fillColor: '#374151', // Darker gray for parts
-                textColor: '#FFFFFF',
-                fontStyle: 'bold',
-                halign: 'left'
-            }
-        }]);
 
-        const depts = groupedTasks[partName];
+    const tableBody: any[] = [];
+    Object.keys(groupedTasks).sort().forEach(partId => {
+        const partName = getPartName(partId);
+        tableBody.push([{ content: partName, colSpan: 7, styles: { fillColor: '#374151', textColor: '#FFFFFF', fontStyle: 'bold', halign: 'left' } }]);
+        const depts = groupedTasks[partId];
+
         Object.keys(depts).sort().forEach(deptName => {
             const colors = areaColors?.find(c => c.name === deptName) || defaultColor;
-            // Add a group header row for the Area
-            tableBody.push([{
-                content: deptName,
-                colSpan: 8,
-                styles: {
-                    fillColor: colors?.pdfFillColor || '#E5E7EB',
-                    textColor: colors?.pdfTextColor || '#1F2937',
-                    fontStyle: 'bold',
-                    halign: 'left'
-                }
-            }]);
+            tableBody.push([{ content: deptName, colSpan: 7, styles: { fillColor: colors?.pdfFillColor || '#E5E7EB', textColor: colors?.pdfTextColor || '#1F2937', fontStyle: 'bold', halign: 'left' } }]);
 
-            // Sort tasks within the group
             const sortedTasks = depts[deptName].sort((a, b) => {
                 const priorityA = priorityOrder[a.priority] || 4;
                 const priorityB = priorityOrder[b.priority] || 4;
-                if (priorityA !== priorityB) {
-                    return priorityA - priorityB;
-                }
+                if (priorityA !== priorityB) return priorityA - priorityB;
                 return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
             });
 
-            // Add task rows
             sortedTasks.forEach(task => {
                 const assignedUser = users.find(u => u.id === task.assignedToId);
-                const delay = differenceInDays(today, new Date(task.deadline));
-                
+                const delay = differenceInDays(new Date(), new Date(task.deadline));
                 tableBody.push([
-                    task.title,
-                    assignedUser?.name || 'N/A',
-                    task.priority,
-                    format(new Date(task.deadline), 'dd/MM/yy'),
-                    delay > 0 ? `${delay} días` : '—',
-                    `${task.estimatedTime}h`,
-                    'Sí',
+                    task.title, 
+                    assignedUser?.name || 'N/A', 
+                    task.priority, 
+                    format(new Date(task.deadline), 'dd/MM/yy'), 
+                    delay > 0 ? `${delay} días` : '—', 
+                    `${task.estimatedTime}h`, 
+                    ''
                 ]);
             });
         });
     });
 
-
+    const M = { l: 14, r: 14, t: 18, b: 12 };
+    
+    let firstPageHeaderY = M.t + 20; // Default startY
+    
     autoTable(doc, {
         head: [['Tarea', 'Asignado', 'Prioridad', 'Entrega', 'Retraso', 'Horas', 'Firma']],
         body: tableBody,
-        startY: M.t + 34,
-        margin: { left: M.l, right: M.r },
+        startY: firstPageHeaderY,
+        margin: { left: M.l, right: M.r, bottom: M.b + 10 },
         theme: 'grid',
-        styles: {
-            font: 'Inter',
-            fontSize: 9,
-            cellPadding: 2,
-            lineColor: '#E5E7EB',
-            lineWidth: 0.1,
-            overflow: 'linebreak'
-        },
-        headStyles: {
-            fillColor: '#F5F5F5',
-            textColor: '#1F2937',
-            fontStyle: 'bold',
-            halign: 'left',
-        },
-        alternateRowStyles: {
-            fillColor: '#FBFBFB'
-        },
-        columnStyles: {
-            0: { cellWidth: 70 }, // Tarea
-            1: { cellWidth: 26 }, // Asignado
-            2: { cellWidth: 18 }, // Prioridad
-            3: { cellWidth: 18 }, // Entrega
-            4: { cellWidth: 16, halign: 'right' }, // Retraso
-            5: { cellWidth: 14, halign: 'right' }, // Horas
-            6: { cellWidth: 14, halign: 'center' }, // Firma
-        },
-        didParseCell: (data) => {
-             // Do not render content for group header rows, we already have the content from the colSpan cell
-            if (data.row.raw.length === 1) {
-                if (data.row.raw[0].colSpan !== 8) {
-                    data.cell.text = [];
-                }
-                return;
-            }
-            // High priority styling
-            if (data.column.dataKey === 2 && data.cell.raw === 'Alta') {
-                data.cell.styles.textColor = '#BE1E2D';
-                data.cell.styles.fontStyle = 'bold';
-            }
-             // Delay styling
-            if (data.column.dataKey === 4 && (data.cell.raw as string).includes('días')) {
-                data.cell.styles.textColor = '#A46B00';
-            }
-        },
+        showHead: 'everyPage',
+        headStyles: { fillColor: '#E5E7EB', textColor: '#1F2937', fontStyle: 'bold' },
         didDrawPage: async (data) => {
-            addHeader(doc);
-            // We'll call the footer after the table is drawn to get total pages
+            if (data.pageNumber === 1) {
+                const headerY = await addPdfHeader(doc, project, users);
+                data.settings.startY = headerY; // Set startY for the first page table
+            }
+        },
+        willDrawCell: (data) => {
+            const isPartHeader = data.row.raw[0]?.styles?.fillColor === '#374151';
+            const isDeptHeader = !isPartHeader && data.row.cells[0]?.colSpan === 7;
+
+            if (isPartHeader || isDeptHeader) {
+                doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            }
+        },
+        didParseCell: (data: any) => {
+            if (data.row.raw[0]?.styles?.fillColor) return;
+            if (data.column.dataKey === 2 && data.cell.raw === 'Alta') { data.cell.styles.textColor = '#BE1E2D'; data.cell.styles.fontStyle = 'bold'; }
+            if (data.column.dataKey === 4 && (data.cell.raw as string).includes('días')) { data.cell.styles.textColor = '#A46B00'; }
+        },
+        columnStyles: { 
+            0: { cellWidth: 'auto', halign: 'left' },
+            1: { cellWidth: 25, halign: 'left' },
+            2: { cellWidth: 22, halign: 'left' },
+            3: { cellWidth: 18, halign: 'left' },
+            4: { cellWidth: 18, halign: 'right' },
+            5: { cellWidth: 14, halign: 'right' },
+            6: { cellWidth: 14, halign: 'center' }
         },
     });
-    
-    // Add footers to all pages now that we know the total page count
+
     const totalPages = (doc.internal as any).pages.length || doc.internal.getNumberOfPages();
-    for(let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        await addFooter(doc, i, totalPages);
+        await addPdfFooter(doc, i, totalPages, logoUrl);
     }
 
-    const filename = `AIT_${project.numero || project.id}_${project.client}_TareasPendientes_${format(today, 'yyyy-MM-dd_HHmm')}.pdf`;
+    const filename = `AIT_${project.numero || project.id}_${project.client}_TareasPendientes_${format(new Date(), 'yyyy-MM-dd_HHmm')}.pdf`;
     doc.save(filename);
 };
+
+
+export const generateUserTasksPdf = async (
+    users: User[],
+    allTasks: Task[],
+    allProjects: Project[],
+    logoUrl: string | null
+) => {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+
+    const doc = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4'
+    }) as jsPDFWithAutoTable;
+
+    const M = { l: 12, r: 12, t: 18, b: 12 };
+    
+    const today = new Date();
+    const dayOfWeek = getDay(today);
+    const diff = (dayOfWeek - 5 + 7) % 7; 
+    const weekStart = startOfDay(subDays(today, diff));
+    const weekEnd = endOfDay(addDays(weekStart, 6)); 
+
+    const dayColors: Record<number, string> = {
+        1: '#DBEAFE', // Lunes (Blue)
+        2: '#D1FAE5', // Martes (Green)
+        3: '#FEF3C7', // Miércoles (Yellow)
+        4: '#FCE7F3', // Jueves (Pink)
+        5: '#FEE2E2', // Viernes (Red)
+    };
+
+    let printedUsersCount = 0;
+
+    users.forEach((user, i) => {
+        const userTasks = allTasks.filter(t => {
+            if (t.assignedToId !== user.id || t.status === 'finalizada') {
+                return false;
+            }
+            const deadline = new Date(t.deadline);
+            const day = getDay(deadline);
+            return deadline >= weekStart && deadline <= weekEnd && day > 0 && day < 6;
+        });
+
+        if (userTasks.length === 0) return;
+
+        if (i > 0 && printedUsersCount > 0) {
+            doc.addPage();
+        }
+        
+        printedUsersCount++;
+
+        let startY = M.t;
+
+        doc.setFont('Inter', 'bold');
+        doc.setFontSize(14);
+        doc.text(user.name.toUpperCase(), M.l, startY);
+        const textWidth = doc.getTextWidth(user.name.toUpperCase());
+        doc.setDrawColor(0, 0, 0);
+        doc.line(M.l, startY + 1, M.l + textWidth, startY + 1);
+        startY += 8;
+
+
+        const tableBody = userTasks
+            .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+            .map(task => {
+                const project = allProjects.find(p => p.id === task.projectId);
+                const part = project?.parts.find(p => p.id === task.partId);
+                return {
+                    title: task.title,
+                    partName: part?.name || 'N/A',
+                    deadline: format(new Date(task.deadline), 'EEEE dd/MM', { locale: es }),
+                    dayKey: getDay(new Date(task.deadline))
+                };
+            });
+
+        autoTable(doc, {
+            head: [['Tarea', 'Parte', 'Entrega']],
+            body: tableBody.map(t => [t.title, t.partName, t.deadline]),
+            startY: startY,
+            margin: { left: M.l, right: M.r, bottom: M.b + 10 },
+            theme: 'grid',
+            headStyles: { fillColor: '#E5E7EB', textColor: '#1F2937', fontStyle: 'bold' },
+            willDrawCell: (data) => {
+                if (data.section === 'body') {
+                    const task = tableBody[data.row.index];
+                    const color = dayColors[task.dayKey];
+                    if (color) {
+                        doc.setFillColor(color);
+                        doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+                    }
+                }
+            },
+        });
+    });
+    
+    if (printedUsersCount === 0) { 
+        toast({
+            variant: "destructive",
+            title: "No hay tareas para esta semana",
+            description: "Ninguno de los usuarios seleccionados tiene tareas pendientes para la semana laboral actual.",
+        });
+        return;
+    }
+
+    const totalPages = (doc.internal as any).pages.length || doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        await addPdfFooter(doc, i, totalPages, logoUrl);
+    }
+
+    const filename = `Resumen_Tareas_Semanal_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(filename);
+};
+
+    

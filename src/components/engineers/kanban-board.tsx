@@ -53,6 +53,7 @@ const KanbanColumn = ({ title, tasks }: { title: string, tasks: Task[] }) => {
 export default function KanbanBoard({ tasks }: KanbanBoardProps) {
     const columns: { title: string, status: TaskStatus }[] = [
         { title: 'Pendientes', status: 'pendiente' },
+        { title: 'En Progreso', status: 'en-progreso' },
         { title: 'Para Soldar', status: 'para-soldar' },
         { title: 'Montadas', status: 'montada' },
         { title: 'Finalizadas', status: 'finalizada' },

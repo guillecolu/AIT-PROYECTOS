@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -14,9 +15,9 @@ import type { Task, User, TaskStatus, TaskComponent, TaskPriority, Project, Part
 import { useEffect, useState, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, isValid, addDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, PlusCircle, Save, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Save, Trash2, X } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { useData } from '@/hooks/use-data';
 import { useToast } from '@/hooks/use-toast';
@@ -30,13 +31,16 @@ const taskSchema = z.object({
   description: z.string().optional(),
   projectId: z.string().min(1, "El proyecto es obligatorio"),
   partId: z.string().min(1, "El parte es obligatorio"),
-  assignedToId: z.string().min(1, 'Por favor, asigna un usuario.'),
+  assignedToId: z.string().optional(),
   status: z.enum(['pendiente', 'para-soldar', 'montada', 'finalizada', 'en-progreso']),
   estimatedTime: z.coerce.number().min(0, 'El tiempo estimado debe ser un número positivo.'),
   actualTime: z.coerce.number().min(0, 'El tiempo real debe ser un número positivo.'),
   priority: z.enum(['Baja', 'Media', 'Alta']),
+  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.'}),
   deadline: z.date({ required_error: 'La fecha límite es obligatoria.'}),
-  progress: z.coerce.number().min(0).max(100, 'El progreso debe estar entre 0 y 100.'),
+}).refine(data => data.deadline >= data.startDate, {
+  message: 'La fecha límite no puede ser anterior a la fecha de inicio.',
+  path: ['deadline'],
 });
 
 interface TaskFormModalProps {
@@ -69,12 +73,12 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
       description: '',
       projectId: '',
       partId: '',
-      assignedToId: defaultAssigneeId || '',
+      assignedToId: undefined,
       status: 'pendiente',
       estimatedTime: 0,
       actualTime: 0,
       priority: 'Media',
-      progress: 0,
+      startDate: new Date(),
     },
   });
 
@@ -85,6 +89,28 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
 
       const partsForProject = projects.find(p => p.id === initialProjectId)?.parts || [];
       
+      const today = new Date();
+      const currentDay = getDay(today); // 0=Sun, 1=Mon, 4=Thu, 5=Fri
+      // Calculate days to add to get to the next Thursday (day 4)
+      // If today is Friday (5), we want next Thursday. daysToAdd = (4 - 5 + 7) % 7 = 6
+      // If today is Saturday(6), daysToAdd = (4 - 6 + 7) % 7 = 5
+      // If today is Sunday(0), daysToAdd = (4 - 0 + 7) % 7 = 4
+      const daysToAdd = (4 - currentDay + 7) % 7;
+      const nextThursday = addDays(today, daysToAdd === 0 && currentDay !== 4 ? 7 : daysToAdd); // If it's 0, it means it's Thursday, unless we want next week's. The prompt implies this week's Thursday. So if today is thursday, use today.
+      
+      const defaultValues = {
+        title: prefillData?.title || '',
+        description: prefillData?.description || '',
+        projectId: initialProjectId,
+        partId: defaultPartId || partsForProject[0]?.id || '',
+        assignedToId: defaultAssigneeId,
+        status: 'pendiente' as TaskStatus,
+        estimatedTime: prefillData?.estimatedTime || 0,
+        actualTime: 0,
+        priority: 'Media' as TaskPriority,
+        startDate: new Date(),
+        deadline: nextThursday,
+      };
 
       if (task) {
         form.reset({
@@ -97,23 +123,11 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
           estimatedTime: task.estimatedTime,
           actualTime: task.actualTime,
           priority: task.priority,
-          deadline: new Date(task.deadline),
-          progress: task.progress,
+          startDate: task.startDate ? new Date(task.startDate) : new Date(),
+          deadline: task.deadline ? new Date(task.deadline) : new Date(),
         });
       } else {
-        form.reset({
-          title: prefillData?.title || '',
-          description: prefillData?.description || '',
-          projectId: initialProjectId,
-          partId: defaultPartId || partsForProject[0]?.id || '',
-          assignedToId: defaultAssigneeId || '',
-          status: 'pendiente',
-          estimatedTime: prefillData?.estimatedTime || 0,
-          actualTime: 0,
-          priority: 'Media',
-          deadline: new Date(),
-          progress: 0,
-        });
+        form.reset(defaultValues);
       }
     }
   }, [isOpen, task, projects, project, defaultComponent, form, defaultAssigneeId, defaultPartId, prefillData]);
@@ -130,9 +144,9 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
     let finalTaskData: Omit<Task, 'id'> | Task;
 
     if (task) {
-        finalTaskData = { ...task, ...taskData, deadline: data.deadline.toISOString(), component };
+        finalTaskData = { ...task, ...taskData, startDate: data.startDate.toISOString(), deadline: data.deadline.toISOString(), component };
     } else {
-        finalTaskData = { ...taskData, deadline: data.deadline.toISOString(), component } as Omit<Task, 'id'> & { component: TaskComponent };
+        finalTaskData = { ...taskData, startDate: data.startDate.toISOString(), deadline: data.deadline.toISOString(), component } as Omit<Task, 'id'> & { component: TaskComponent };
     }
 
     onSave(finalTaskData);
@@ -275,82 +289,91 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                         </FormItem>
                     )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="projectId"
-                        render={({ field }) => (
+                </div>
+
+                {/* Columna Derecha */}
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-x-6">
+                         <FormField
+                            control={form.control}
+                            name="projectId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Proyecto</FormLabel>
+                                    <Select onValueChange={(value) => {
+                                        field.onChange(value);
+                                        setSelectedProjectId(value);
+                                        form.setValue('partId', '', { shouldValidate: true });
+                                    }} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona un proyecto" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {projects.map((p) => (
+                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="partId"
+                            render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Proyecto</FormLabel>
-                                <Select onValueChange={(value) => {
-                                    field.onChange(value);
-                                    setSelectedProjectId(value);
-                                    form.setValue('partId', '', { shouldValidate: true });
-                                }} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecciona un proyecto" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {projects.map((p) => (
-                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
+                                <FormLabel>Parte del Proyecto</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProjectId}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona un parte" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {partsForSelectedProject.map((part: Part) => (
+                                    <SelectItem key={part.id} value={part.id}>{part.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
                                 </Select>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
+                            )}
+                        />
+                    </div>
                      <FormField
-                        control={form.control}
-                        name="partId"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Parte del Proyecto</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={!selectedProjectId}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un parte" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {partsForSelectedProject.map((part: Part) => (
-                                <SelectItem key={part.id} value={part.id}>{part.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
                         control={form.control}
                         name="assignedToId"
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Seleccionar trabajador</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Selecciona un trabajador" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {users.map(user => (
-                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Pendiente de asignar" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {users.map(user => (
+                                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                                </Select>
+                                {field.value && (
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => field.onChange(undefined)}>
+                                        <X className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                )}
+                            </div>
                             <FormMessage />
                         </FormItem>
                         )}
                     />
-                </div>
-
-                {/* Columna Derecha */}
-                <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
-                         <FormField
+                    <div className="grid grid-cols-2 gap-x-6">
+                        <FormField
                             control={form.control}
                             name="status"
                             render={({ field }) => (
@@ -397,21 +420,13 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                             )}
                         />
                     </div>
-                     <FormField
-                        control={form.control}
-                        name="deadline"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Fecha Límite</FormLabel>
-                             {isMobile ? (
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    className="rounded-md border"
-                                    locale={es}
-                                />
-                             ) : (
+                     <div className="grid grid-cols-2 gap-x-6">
+                        <FormField
+                            control={form.control}
+                            name="startDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Fecha de Inicio</FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                     <FormControl>
@@ -422,8 +437,8 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                                             !field.value && "text-muted-foreground"
                                         )}
                                         >
-                                        {field.value ? (
-                                            format(field.value, "PPP", { locale: es })
+                                        {field.value && isValid(new Date(field.value)) ? (
+                                            format(new Date(field.value), "P", { locale: es })
                                         ) : (
                                             <span>Elige una fecha</span>
                                         )}
@@ -438,28 +453,56 @@ export default function TaskFormModal({ isOpen, onClose, onSave, task, users, pr
                                         onSelect={field.onChange}
                                         initialFocus
                                         locale={es}
+                                        weekStartsOn={1}
                                     />
                                     </PopoverContent>
                                 </Popover>
-                             )}
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="progress"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Progreso (%)</FormLabel>
-                            <FormControl>
-                            <Input type="number" {...field} placeholder="0"/>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <div className="grid grid-cols-2 gap-6">
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="deadline"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Fecha Límite</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value && isValid(new Date(field.value)) ? (
+                                            format(new Date(field.value), "P", { locale: es })
+                                        ) : (
+                                            <span>Elige una fecha</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        locale={es}
+                                        weekStartsOn={1}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6">
                         <FormField
                             control={form.control}
                             name="estimatedTime"

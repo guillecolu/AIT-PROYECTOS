@@ -16,7 +16,7 @@ export interface User {
   order?: number;
 }
 
-export type ProjectStatus = 'activo' | 'cerrado' | 'pausado';
+export type ProjectStatus = 'activo' | 'cerrado' | 'pausado' | 'eliminado';
 export type StageStatus = 'pendiente' | 'en_proceso' | 'completo';
 
 export interface Stage {
@@ -29,24 +29,14 @@ export interface Stage {
     porcentaje: number;
 }
 
-export interface Attachment {
-  id: string;
-  name: string;
-  url: string;
-  path: string; // path in Storage
-  size: number; // in bytes
-  type: string; // MIME type
-  uploadedAt: string; // ISO date string
-  uploadedBy: string; // user id
-}
-
-
 export interface Part {
   id: string;
   name: string;
   stages: Stage[];
   progress?: number;
-  attachments?: Attachment[];
+  totalEstimatedTime?: number;
+  totalActualTime?: number;
+  totalPendingEstimatedTime?: number;
 }
 
 
@@ -96,15 +86,20 @@ export interface Project {
   color?: string;
   order?: number;
   alerts?: ProjectAlerts;
+  totalEstimatedTime?: number;
+  totalActualTime?: number;
+  totalPendingEstimatedTime?: number;
 }
 
 export type TaskStatus = 'pendiente' | 'para-soldar' | 'montada' | 'finalizada' | 'en-progreso';
-export type TaskComponent = 'Estructura' | 'Cableado' | 'Programación' | 'Ensamblaje' | 'Diseño' | 'Corte' | 'Soldadura' | 'Montaje' | 'Pruebas' | 'Fabricacion' | 'Eléctrico';
+export type TaskComponent = 'Estructura' | 'Cableado' | 'Programación' | 'Ensamblaje' | 'Diseño' | 'Corte' | 'Soldadura' | 'Montaje' | 'Pruebas' | 'Fabricacion' | 'Eléctrico' | 'Logistica' | string;
+
 export type TaskPriority = 'Baja' | 'Media' | 'Alta';
 
 export interface Signature {
   userId: string;
   date: string; // ISO date string
+  workDescription: string;
 }
 
 export interface TaskComment {
@@ -123,7 +118,7 @@ export interface Task {
   partId: string;
   component: TaskComponent;
   status: TaskStatus;
-  assignedToId: string;
+  assignedToId?: string;
   estimatedTime: number; // in hours
   actualTime: number; // in hours
   finalizedByUserId?: string;
@@ -133,10 +128,12 @@ export interface Task {
   attachmentURL?: string;
   attachmentName?: string;
   priority: TaskPriority;
+  startDate: string; // ISO date string
   deadline: string; // ISO date string
-  progress: number; // 0-100
   isUrgent?: boolean;
   blocked?: boolean;
+  progress?: number;
+  icon?: string;
 }
 
 export interface CommonTask {

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { Part, Task } from '@/lib/types';
-import { Folder, FolderOpen, FolderPlus, Trash2, GripVertical } from 'lucide-react';
+import { Folder, FolderOpen, FolderPlus, Trash2, GripVertical, Clock, Timer } from 'lucide-react';
 import EditableField from '../ui/editable-field';
 import { Button } from '../ui/button';
 import {
@@ -88,11 +88,34 @@ const PartCard = ({ part, tasks, onClick, isSelected, onNameChange, onDelete }: 
                 onEditingChange={setIsEditing}
                 />
                 <p className="text-sm text-muted-foreground">{completedTasks} de {totalTasks} tareas completadas</p>
-                <div className="flex items-center gap-2 mt-2">
-                <div className="w-full bg-muted rounded-full h-1.5">
-                    <div className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }}></div>
+                <div className="flex items-center gap-2 mt-1">
+                    <div className="w-full bg-muted rounded-full h-1.5">
+                        <div className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-in-out" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <span className="text-xs font-semibold">{progress}%</span>
                 </div>
-                <span className="text-xs font-semibold">{progress}%</span>
+                <div className="text-xs text-muted-foreground border-t pt-2 mt-2 space-y-1">
+                    <div className="flex items-center justify-between" title="Horas Estimadas">
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="h-3 w-3"/>
+                            <span>Estimadas</span>
+                        </div>
+                        <span className="font-medium text-foreground">{part.totalEstimatedTime?.toFixed(1) || 0}h</span>
+                    </div>
+                     <div className="flex items-center justify-between" title="Horas Reales">
+                         <div className="flex items-center gap-1.5">
+                            <Clock className="h-3 w-3"/>
+                            <span>Reales</span>
+                        </div>
+                        <span className="font-medium text-foreground">{part.totalActualTime?.toFixed(1) || 0}h</span>
+                    </div>
+                    <div className="flex items-center justify-between" title="Horas Pendientes (Estimadas)">
+                         <div className="flex items-center gap-1.5">
+                            <Timer className="h-3 w-3" />
+                            <span>Pendientes</span>
+                        </div>
+                        <span className="font-medium text-foreground">{part.totalPendingEstimatedTime?.toFixed(1) || 0}h</span>
+                    </div>
                 </div>
             </div>
             </CardContent>
@@ -184,7 +207,7 @@ export default function PartsRoadmap({ project, tasks, onPartSelect, selectedPar
                         onDelete={() => onPartDelete(part.id)}
                         />
                     ))}
-                    <Button variant="outline" className="h-full min-h-[130px] w-full rounded-lg flex-shrink-0 flex flex-col items-center justify-center" onClick={onAddPart}>
+                    <Button variant="outline" className="h-full min-h-[210px] w-full rounded-lg flex-shrink-0 flex flex-col items-center justify-center" onClick={onAddPart}>
                     <FolderPlus className="h-8 w-8 text-muted-foreground mb-2" />
                     <span className="text-muted-foreground">Añadir Parte</span>
                     </Button>

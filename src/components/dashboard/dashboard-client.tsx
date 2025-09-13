@@ -4,7 +4,7 @@
 import { useMemo } from 'react';
 import type { Project } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FolderArchive, Users, AlertTriangle, FolderClosed, FolderKanban, FolderPlus, Loader2 } from 'lucide-react';
+import { FolderArchive, Users, AlertTriangle, FolderClosed, FolderKanban, FolderPlus, Loader2, GanttChartSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { PlusCircle } from 'lucide-react';
@@ -106,12 +106,14 @@ export default function DashboardClient() {
                     <h1 className="text-3xl font-bold font-headline">Panel de Control</h1>
                     <p className="text-muted-foreground">Una vista global del estado de los proyectos y del equipo.</p>
                  </div>
-                 <Button asChild size="lg">
-                    <Link href="/dashboard/create-project">
-                        <PlusCircle className="mr-2" />
-                        Crear Nuevo Proyecto
-                    </Link>
-                </Button>
+                 <div className='flex items-center gap-2'>
+                    <Button asChild size="lg">
+                        <Link href="/dashboard/create-project">
+                            <PlusCircle className="mr-2" />
+                            Crear Nuevo Proyecto
+                        </Link>
+                    </Button>
+                 </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

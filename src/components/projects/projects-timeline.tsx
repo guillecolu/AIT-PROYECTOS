@@ -1,12 +1,13 @@
 
+
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import type { Project, Stage, User, Task, Part, TaskStatus } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, isPast, isToday, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { CheckCircle, Clock, Loader, AlertTriangle, ChevronRight, Folder, Users, Wrench, Zap, Code, Factory } from 'lucide-react';
+import { CheckCircle, Clock, Loader, AlertTriangle, ChevronRight, Folder, Users, Wrench, Zap, Code, Factory, DraftingCompass, Frame, Scissors, Flame, Construction, Cable, FlaskConical, Cog, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { Progress } from '../ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -14,6 +15,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
 
 interface EnrichedProject extends Project {
     projectManager: User | undefined;
@@ -28,16 +31,93 @@ const statusBadgeClasses: Record<TaskStatus, string> = {
 };
 
 const componentIcons: Record<string, React.ReactNode> = {
-    'Estructura': <Wrench className="h-4 w-4" />,
-    'Cableado': <Zap className="h-4 w-4" />,
+    'Diseño': <Cog className="h-4 w-4" />,
+    'Estructura': <Frame className="h-4 w-4" />,
+    'Corte': <Scissors className="h-4 w-4" />,
+    'Soldadura': <Flame className="h-4 w-4" />,
+    'Montaje': <Wrench className="h-4 w-4" />,
+    'Cableado': <Cable className="h-4 w-4" />,
+    'Eléctrico': <Zap className="h-4 w-4" />,
     'Programación': <Code className="h-4 w-4" />,
-    'Ensamblaje': <Factory className="h-4 w-4" />,
-    'Diseño': <Wrench className="h-4 w-4" />,
-    'Corte': <Zap className="h-4 w-4" />,
-    'Soldadura': <Code className="h-4 w-4" />,
-    'Montaje': <Factory className="h-4 w-4" />,
     'Pruebas': <CheckCircle className="h-4 w-4" />,
+    'Fabricacion': <Factory className="h-4 w-4" />,
+    'Ensamblaje': <Construction className="h-4 w-4" />,
+    'Logistica': <Truck className="h-4 w-4" />,
 }
+
+function ClientSideDate({ dateString, className, format = 'dd/MM/yyyy' }: { dateString: string, className?: string, format?: string }){
+    const [formattedDate, setFormattedDate] = useState('');
+
+    useEffect(() => {
+        if (dateString) {
+            const { format: formatDate, es } = require('date-fns');
+            setFormattedDate(formatDate(new Date(dateString), format, { locale: es }));
+        } else {
+            setFormattedDate('');
+        }
+    }, [dateString, format]);
+
+    return <span className={className}>{formattedDate}</span>;
+};
+
+
+const deadlineBadgeConfig = {
+  delayed: {
+    dot: 'bg-red-500',
+    badge: 'bg-red-100 text-red-700',
+    tooltip: 'Retrasada: La fecha de entrega ya ha pasado.',
+  },
+  soon: {
+    dot: 'bg-yellow-500',
+    badge: 'bg-yellow-100 text-yellow-700',
+    tooltip: 'Vence pronto: La tarea vence hoy o en los próximos 2 días.',
+  },
+  onTime: {
+    dot: 'bg-green-500',
+    badge: 'bg-green-100 text-green-700',
+    tooltip: 'En tiempo: Quedan más de 2 días.',
+  },
+};
+
+const DeadlineBadge = ({ deadline }: { deadline: string }) => {
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  let status: keyof typeof deadlineBadgeConfig = 'onTime';
+
+  if (isPast(deadlineDate) && !isToday(deadlineDate)) {
+    status = 'delayed';
+  } else {
+    const daysUntilDeadline = differenceInCalendarDays(deadlineDate, today);
+    if (daysUntilDeadline <= 2) {
+      status = 'soon';
+    }
+  }
+
+  const config = deadlineBadgeConfig[status];
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-xs font-semibold capitalize border-none px-2 py-1 inline-flex items-center gap-2',
+              config.badge
+            )}
+          >
+            <div className={cn('h-1.5 w-1.5 rounded-full', config.dot)}></div>
+            <ClientSideDate dateString={deadline} />
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{config.tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
 
 export default function ProjectsTimeline({ projects, users, tasks }: { projects: Project[], users: User[], tasks: Task[] }) {
 
@@ -121,21 +201,18 @@ export default function ProjectsTimeline({ projects, users, tasks }: { projects:
                                                             </div>
                                                         </div>
                                                         {stageTasks.length > 0 ? (
-                                                        <Table>
-                                                            <TableBody>
-                                                                {stageTasks.map(task => (
-                                                                    <TableRow key={task.id} className="h-8">
-                                                                        <TableCell className="p-1 pl-7 font-medium text-xs w-2/3">{task.title}</TableCell>
-                                                                        <TableCell className="p-1 text-xs">{getUserName(task.assignedToId)}</TableCell>
-                                                                        <TableCell className="p-1 text-xs">
-                                                                             <Badge variant="secondary" className={cn("capitalize text-xs font-normal border-0", statusBadgeClasses[task.status])}>
-                                                                                {task.status.replace('-', ' ')}
-                                                                            </Badge>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                ))}
-                                                            </TableBody>
-                                                        </Table>
+                                                        <div className="pl-7 space-y-1">
+                                                            {stageTasks.map(task => (
+                                                                <Link key={task.id} href={`/dashboard/projects/${project.id}`} className="flex items-center justify-start gap-4 text-sm py-2 border-b border-dashed border-muted -mx-2 px-2 hover:bg-muted/50 rounded-md">
+                                                                    <span className="text-foreground hover:underline">{task.title}</span>
+                                                                    <span className="font-semibold text-foreground">{getUserName(task.assignedToId)}</span>
+                                                                    <DeadlineBadge deadline={task.deadline} />
+                                                                    <Badge variant="secondary" className={cn("capitalize text-xs font-normal border-0", statusBadgeClasses[task.status])}>
+                                                                        {task.status.replace('-', ' ')}
+                                                                    </Badge>
+                                                                </Link>
+                                                            ))}
+                                                        </div>
                                                         ) : (
                                                             <p className="text-xs text-muted-foreground pl-7 py-2">No hay tareas en esta área.</p>
                                                         )}

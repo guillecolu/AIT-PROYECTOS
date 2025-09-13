@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,6 @@ import type { AreaColor } from '@/lib/types';
 import { Label } from '../ui/label';
 import { useData } from '@/hooks/use-data';
 import { HexColorPicker } from 'react-colorful';
-import { useDebounce } from '@/hooks/use-debounce';
 
 interface AreaColorPickerProps {
     areaName: string;
@@ -19,48 +18,36 @@ interface AreaColorPickerProps {
 export default function AreaColorPicker({ areaName }: AreaColorPickerProps) {
     const { areaColors, saveAreaColor } = useData();
     
-    const [bgColor, setBgColor] = useState('#ffffff');
-    const [textColor, setTextColor] = useState('#000000');
+    const currentColors = useMemo(() => {
+        if (!areaColors) return null;
+        return areaColors.find(c => c.name === areaName) || areaColors.find(c => c.name === 'default');
+    }, [areaColors, areaName]);
+    
+    const [bgColor, setBgColor] = useState(currentColors?.bgColor || '#ffffff');
+    const [textColor, setTextColor] = useState(currentColors?.textColor || '#000000');
     const [isOpen, setIsOpen] = useState(false);
-
+    
     useEffect(() => {
-        if (isOpen && areaColors) {
-            const current = areaColors.find(c => c.name === areaName) || areaColors.find(c => c.name === 'default');
-            if (current) {
-                setBgColor(current.bgColor);
-                setTextColor(current.textColor);
-            }
+        if (currentColors && !isOpen) {
+            setBgColor(currentColors.bgColor);
+            setTextColor(currentColors.textColor);
         }
-    }, [areaName, isOpen, areaColors]);
+    }, [currentColors, isOpen]);
 
     const handleSave = useCallback(() => {
-        const current = areaColors?.find(c => c.name === areaName) || areaColors?.find(c => c.name === 'default');
-        if (!current) return;
+        if (!currentColors) return;
 
         const newColorData: AreaColor = {
-            ...current,
+            ...currentColors,
             name: areaName,
-            bgColor,
-            textColor,
+            bgColor: bgColor,
+            textColor: textColor,
         };
         saveAreaColor(newColorData);
         setIsOpen(false);
-    }, [areaName, bgColor, textColor, areaColors, saveAreaColor]);
+    }, [areaName, bgColor, textColor, currentColors, saveAreaColor]);
 
-    const DebouncedColorPicker = ({ color, setColor }: { color: string, setColor: (color: string) => void }) => {
-        const [pickerColor, setPickerColor] = useState(color);
-        const debouncedColor = useDebounce(pickerColor, 200);
-
-        useEffect(() => {
-            setColor(debouncedColor);
-        }, [debouncedColor, setColor]);
-
-        return <HexColorPicker color={pickerColor} onChange={setPickerColor} />;
-    }
-
-    if (!areaColors) return null;
-    const current = areaColors.find(c => c.name === areaName) || areaColors.find(c => c.name === 'default');
-    if (!current) return null;
+    if (!currentColors) return null;
 
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -70,7 +57,7 @@ export default function AreaColorPicker({ areaName }: AreaColorPickerProps) {
                     size="icon"
                     className="h-7 w-7 opacity-0 group-hover:opacity-100"
                     onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
-                    style={{ color: current.textColor }}
+                    style={{ color: currentColors.textColor }}
                 >
                     <Palette className="h-4 w-4" />
                 </Button>
@@ -86,12 +73,12 @@ export default function AreaColorPicker({ areaName }: AreaColorPickerProps) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-sm">Color de Fondo</Label>
-                            <DebouncedColorPicker color={bgColor} setColor={setBgColor} />
+                            <HexColorPicker color={bgColor} onChange={setBgColor} />
                             <Input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                              <Label className="text-sm">Color de Texto</Label>
-                             <DebouncedColorPicker color={textColor} setColor={setTextColor} />
+                             <HexColorPicker color={textColor} onChange={setTextColor} />
                              <Input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} />
                         </div>
                     </div>

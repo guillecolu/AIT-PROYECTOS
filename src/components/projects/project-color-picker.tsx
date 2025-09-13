@@ -5,13 +5,11 @@ import { useState, useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Palette, X } from 'lucide-react';
+import { Palette, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Project } from '@/lib/types';
-import { Label } from '../ui/label';
 import { HexColorPicker } from 'react-colorful';
-import { useDebounce } from '@/hooks/use-debounce';
-
+import { Label } from '../ui/label';
 
 interface ProjectColorPickerProps {
     project: Project;
@@ -21,20 +19,22 @@ interface ProjectColorPickerProps {
 }
 
 export default function ProjectColorPicker({ project, onColorChange, triggerButtonSize = 'icon', triggerClassName }: ProjectColorPickerProps) {
-    const [color, setColor] = useState(project.color || '#D51A1A');
     const [isOpen, setIsOpen] = useState(false);
-    const debouncedColor = useDebounce(color, 200);
+    const [draftColor, setDraftColor] = useState(project.color || '');
 
     useEffect(() => {
-        setColor(project.color || '#D51A1A');
-    }, [project.color, isOpen]);
-
-    useEffect(() => {
-        if (debouncedColor !== project.color) {
-            onColorChange(debouncedColor);
+        // This effect ensures that if the picker is closed, or if the project color prop changes from outside,
+        // the draft color is updated to reflect the source of truth (project.color).
+        if (!isOpen) {
+             setDraftColor(project.color || '');
         }
-    }, [debouncedColor, onColorChange, project.color]);
+    }, [project.color, isOpen]);
     
+    const handleSave = () => {
+        onColorChange(draftColor);
+        setIsOpen(false);
+    };
+
     const clearColor = (e: React.MouseEvent) => {
         e.stopPropagation();
         onColorChange('');
@@ -51,23 +51,27 @@ export default function ProjectColorPicker({ project, onColorChange, triggerButt
             </PopoverTrigger>
             <PopoverContent className="w-auto p-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col gap-4 items-center">
-                    <Label>Elige un color para el proyecto</Label>
-                    
-                    <HexColorPicker color={color} onChange={setColor} />
-
-                    <div className="flex items-center gap-2 w-full pt-2">
-                        <div className="w-8 h-8 rounded-md border" style={{backgroundColor: color}}></div>
-                        <Input
-                            type="text"
-                            value={color}
-                            onChange={(e) => setColor(e.target.value)}
-                            className="flex-1 h-10"
-                            />
-                        <Button variant="ghost" size="icon" onClick={clearColor}>
+                    <div className="flex justify-between items-center w-full">
+                        <Label>Elige un color para el proyecto</Label>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearColor}>
                             <X className="h-4 w-4 text-muted-foreground" />
                             <span className="sr-only">Quitar color</span>
                         </Button>
                     </div>
+                    
+                    <HexColorPicker color={draftColor} onChange={setDraftColor} />
+
+                    <Input 
+                        type="text" 
+                        value={draftColor}
+                        onChange={(e) => setDraftColor(e.target.value)}
+                        className="w-full"
+                    />
+
+                    <Button onClick={handleSave} className="w-full mt-2">
+                        <Save className="mr-2 h-4 w-4" />
+                        Guardar Color
+                    </Button>
                 </div>
             </PopoverContent>
         </Popover>

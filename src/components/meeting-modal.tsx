@@ -25,6 +25,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import ProjectsTimeline from './projects/projects-timeline';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { generateGlobalSummaryPdf } from '@/lib/pdf-generator';
 
 
 const ReportPlaceholder = ({title, description, icon: Icon}: {title: string, description: string, icon: React.ElementType}) => (
@@ -112,7 +113,7 @@ interface MeetingModalProps {
 
 export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProjects }: MeetingModalProps) {
     const { toast } = useToast();
-    const { users, projects, tasks, loading: isDataLoading } = useData();
+    const { users, projects, tasks, loading: isDataLoading, appConfig } = useData();
     
     const [isModalOpen, setIsModalOpen] = useState(isOpen);
     useEffect(() => {
@@ -134,9 +135,10 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [projectReport, setProjectReport] = useState<GenerateProjectReportOutput | null>(null);
     const [isProjectLoading, setIsProjectLoading] = useState(false);
-
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     
     const timelineProjects = useMemo(() => {
+        if (!projects) return [];
         let projsToDisplay;
     
         if (initialFilteredProjects) {
@@ -181,6 +183,32 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
             setIsProjectLoading(false);
         }
     };
+    
+    const handleGenerateGlobalSummaryPdf = async () => {
+        if (!projects || !tasks || !users) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Datos no cargados completamente.' });
+            return;
+        }
+
+        setIsGeneratingPdf(true);
+        try {
+            const activeProjects = projects.filter(p => p.status === 'activo');
+            await generateGlobalSummaryPdf(activeProjects, tasks, users, appConfig.logoUrl);
+            toast({
+                title: "PDF Generado",
+                description: "El resumen global de tareas se ha descargado.",
+            });
+        } catch (error) {
+            console.error("Error al generar el PDF global:", error);
+            toast({
+                variant: "destructive",
+                title: "Error al generar PDF",
+                description: "No se pudo crear el archivo. Revisa la consola para más detalles.",
+            });
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    };
 
     const dialogTrigger = (
         <DialogTrigger asChild>
@@ -221,7 +249,7 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
                                 <h4 className="font-semibold mb-2 px-1 text-lg">Proyectos Activos</h4>
                                 <ScrollArea className="h-full">
                                 <div className="p-1 space-y-2">
-                                    {projects.filter(p => p.status === 'activo').map(project => (
+                                    {projects && projects.filter(p => p.status === 'activo').map(project => (
                                         <Button
                                             key={project.id}
                                             variant={selectedProject?.id === project.id ? "secondary" : "ghost"}
@@ -250,8 +278,8 @@ export default function MeetingModal({ isOpen, onOpenChange, initialFilteredProj
                 )}
                 <DialogFooter className="mt-4 border-t pt-4">
                      <p className="text-xs text-muted-foreground mr-auto">Los informes son generados por IA y pueden contener imprecisiones.</p>
-                    <Button variant="outline" disabled={!projectReport}>
-                        <FileDown className="mr-2 h-4 w-4" />
+                    <Button variant="outline" onClick={handleGenerateGlobalSummaryPdf} disabled={isGeneratingPdf}>
+                        {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                         Exportar Resumen
                     </Button>
                 </DialogFooter>

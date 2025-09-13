@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import {
   TooltipTrigger,
   TooltipProvider
 } from "@/components/ui/tooltip";
-import { LayoutDashboard, Users, Archive } from "lucide-react";
+import { LayoutDashboard, Users, Archive, Home, GanttChartSquare } from "lucide-react";
 import Image from "next/image";
 import { useData } from "@/hooks/use-data";
 
@@ -20,19 +21,15 @@ export default function AppSidebar() {
       <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
         <Link
           href="/dashboard"
-          className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+          className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-white text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
         >
-          {appConfig.logoUrl ? (
             <Image
-              src={appConfig.logoUrl}
+              src="/images/LOGO.png"
               alt="AIT Logo"
               width={32}
               height={32}
               className="rounded-full object-contain"
             />
-           ) : (
-            <span className="font-bold text-xs">AIT</span>
-           )}
           <span className="sr-only">AIT</span>
         </Link>
         <Tooltip>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, notFound } from 'next/navigation';
@@ -7,14 +8,13 @@ import { useData } from '@/hooks/use-data';
 export default function ProjectDetailPage() {
     const params = useParams();
     const projectId = params.id as string;
-    const { getProjectById, getTasksByProjectId, getUsers, loading } = useData();
+    const { getProjectById, getUsers, loading } = useData();
     
     if (loading) {
         return <div className="flex items-center justify-center p-20">Cargando...</div>;
     }
 
     const project = getProjectById(projectId);
-    const tasks = getTasksByProjectId(projectId);
     const users = getUsers();
 
     if (!project) {
@@ -22,7 +22,5 @@ export default function ProjectDetailPage() {
         return null;
     }
 
-    return <ProjectDetailsClient project={project} tasks={tasks} users={users} />;
+    return <ProjectDetailsClient project={project} users={users} />;
 }
-
-    

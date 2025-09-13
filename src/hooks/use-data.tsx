@@ -2,15 +2,18 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, Attachment, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
-import { db, storage } from '@/lib/firebase';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import type { Project, Task, User, Part, Stage, CommonTask, AppConfig, UserRole, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
+import { db, storage, app }from '@/lib/firebase';
+import { getAuth, onAuthStateChanged, signInAnonymously, User as FirebaseUser } from 'firebase/auth';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc, addDoc, updateDoc, onSnapshot, query, Unsubscribe } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as mime from 'mime-types';
 import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
 import { defaultAreaColors } from '@/lib/colors';
-import { useDebounce } from './use-debounce';
+import { Loader2 } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import AutoLoginForm from '@/components/auth/auto-login-form';
 
 interface DataContextProps {
   projects: Project[] | null;
@@ -22,6 +25,7 @@ interface DataContextProps {
   commonDepartments: string[] | null;
   commonTasks: CommonTask[] | null;
   loading: boolean;
+  firebaseUser: FirebaseUser | null;
   getProjectById: (id: string) => Project | undefined;
   getTasksByProjectId: (projectId: string) => Task[];
   getUsers: () => User[];
@@ -34,22 +38,21 @@ interface DataContextProps {
   saveUserRole: (role: UserRole) => Promise<void>;
   deleteUserRole: (role: UserRole) => Promise<void>;
   addPartToProject: (projectId: string, partName?: string) => Promise<Part | null>;
-  addAttachmentToPart: (projectId: string, partId: string, file: File) => Promise<Attachment | null>;
-  deleteAttachmentFromPart: (projectId: string, partId: string, attachmentId: string) => Promise<void>;
   saveCommonDepartment: (departmentName: string) => void;
   saveCommonTask: (task: CommonTask) => void;
   deleteCommonTask: (taskId: string) => Promise<void>;
   saveAppConfig: (config: Partial<AppConfig>) => Promise<void>;
-  uploadFile: (file: File, path: string, onProgress?: (progress: number) => void) => Promise<string>;
   saveAreaColor: (colorData: AreaColor) => Promise<void>;
   setProjects: React.Dispatch<React.SetStateAction<Project[] | null>>;
   setUsers: React.Dispatch<React.SetStateAction<User[] | null>>;
+  uploadFile: (file: File, path: string, onProgress?: (progress: number) => void) => Promise<string>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
-  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [rawProjects, setRawProjects] = useState<Project[] | null>(null);
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [users, setUsers] = useState<User[] | null>(null);
   const [userRoles, setUserRoles] = useState<UserRole[] | null>(null);
@@ -58,6 +61,71 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [commonDepartments, setCommonDepartments] = useState<string[] | null>(null);
   const [commonTasks, setCommonTasks] = useState<CommonTask[] | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const projects = useMemo(() => {
+    if (!rawProjects || !tasks) return rawProjects;
+
+    return rawProjects.map(project => {
+        const projectTasks = tasks.filter(task => task.projectId === project.id);
+        
+        let totalProjectEstimatedTime = 0;
+        let totalProjectActualTime = 0;
+        let totalProjectPendingEstimatedTime = 0;
+
+        const updatedParts = (project.parts || []).map(part => {
+            const partTasks = projectTasks.filter(t => t.partId === part.id);
+            if (partTasks.length === 0) {
+              return { 
+                ...part, 
+                progress: 0, 
+                totalEstimatedTime: 0,
+                totalActualTime: 0,
+                totalPendingEstimatedTime: 0
+              };
+            }
+            
+            const pendingPartTasks = partTasks.filter(t => t.status !== 'finalizada');
+            
+            const totalPartEstimatedTime = partTasks.reduce((acc, task) => acc + (task.estimatedTime || 0), 0);
+            const totalPartActualTime = partTasks.reduce((acc, task) => acc + (task.actualTime || 0), 0);
+            const totalPartPendingEstimatedTime = pendingPartTasks.reduce((acc, task) => acc + (task.estimatedTime || 0), 0);
+            
+            const totalTaskProgress = partTasks.reduce((acc, task) => acc + (task.progress || (task.status === 'finalizada' ? 100 : 0)), 0);
+            const newPartProgress = Math.round(totalTaskProgress / partTasks.length);
+
+            totalProjectEstimatedTime += totalPartEstimatedTime;
+            totalProjectActualTime += totalPartActualTime;
+            totalProjectPendingEstimatedTime += totalPartPendingEstimatedTime;
+
+            return { 
+                ...part, 
+                progress: newPartProgress, 
+                totalEstimatedTime: totalPartEstimatedTime,
+                totalActualTime: totalPartActualTime,
+                totalPendingEstimatedTime: totalPartPendingEstimatedTime
+            };
+        });
+        
+        let newProjectProgress = 0;
+        if (updatedParts.length > 0) {
+          const totalPartsProgress = updatedParts.reduce((acc, part) => acc + (part.progress || 0), 0);
+          newProjectProgress = Math.round(totalPartsProgress / updatedParts.length);
+        }
+        
+        return { 
+          ...project, 
+          parts: updatedParts, 
+          progress: newProjectProgress,
+          totalEstimatedTime: totalProjectEstimatedTime,
+          totalActualTime: totalProjectActualTime,
+          totalPendingEstimatedTime: totalProjectPendingEstimatedTime
+        };
+    });
+  }, [rawProjects, tasks]);
+
 
   const uploadFile = async (file: File, path: string, onProgress?: (progress: number) => void): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -88,169 +156,95 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     });
   }
 
+  // Effect for handling Firebase Authentication state changes
   useEffect(() => {
-    let initialLoads = {
-        projects: false,
-        tasks: false,
-        users: false,
-        userRoles: false,
-        appConfig: false,
-        areaColors: false,
-        commonDepartments: false,
-        commonTasks: false,
-    };
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+          setFirebaseUser(user);
+      } else {
+          try {
+              await signInAnonymously(auth);
+          } catch (error: any) {
+              console.error("Error al autenticar anónimamente:", error.code, error.message);
+          }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
-    const checkAllDataLoaded = () => {
-        if (Object.values(initialLoads).every(Boolean)) {
+  // Effect for fetching data when user is authenticated
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    setLoading(true);
+    const collectionsToFetch = [
+        { name: 'projects', setter: (data: any) => setRawProjects(data as Project[]) },
+        { name: 'tasks', setter: (data: any) => setTasks(data as Task[]) },
+        { name: 'users', setter: (data: any) => setUsers((data as User[]).sort((a,b) => (a.order || 0) - (b.order || 0))) },
+        { name: 'userRoles', setter: (data: any) => {
+            const userRolesData = data.map((d: any) => d.name as UserRole);
+            const defaultRoles: UserRole[] = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
+            setUserRoles([...new Set([...defaultRoles, ...userRolesData])]);
+        }},
+        { name: 'areaColors', setter: (data: any) => {
+            if (data.length === 0) {
+                setAreaColors(defaultAreaColors);
+            } else {
+                setAreaColors(data as AreaColor[]);
+            }
+        }},
+        { name: 'commonDepartments', setter: (data: any) => setCommonDepartments(data.map((d: any) => d.name)) },
+        { name: 'commonTasks', setter: (data: any) => setCommonTasks(data as CommonTask[]) }
+    ];
+    
+    const unsubscribers: Unsubscribe[] = [];
+    let collectionsLoaded = 0;
+    const totalCollections = collectionsToFetch.length + 1; // +1 for appConfig
+
+    const onDataLoaded = () => {
+        collectionsLoaded++;
+        if (collectionsLoaded === totalCollections) {
             setLoading(false);
         }
     };
-
-    const markLoaded = (key: keyof typeof initialLoads) => {
-        if (!initialLoads[key]) {
-            initialLoads[key] = true;
-            checkAllDataLoaded();
-        }
-    }
-
-
-    const processData = (projectsData: Project[] | null, tasksData: Task[] | null) => {
-      if (!projectsData || !tasksData) return projectsData;
-      return projectsData.map(project => {
-        const projectTasks = tasksData.filter(task => task.projectId === project.id);
-
-        const updatedParts = (project.parts || []).map(part => {
-          const partTasks = projectTasks.filter(t => t.partId === part.id);
-          let newPartProgress = 0;
-          if (partTasks.length > 0) {
-            const totalTaskProgress = partTasks.reduce((acc, task) => acc + (task.progress || 0), 0);
-            newPartProgress = Math.round(totalTaskProgress / partTasks.length);
-          }
-          return { ...part, progress: newPartProgress };
-        });
-
-        let newProjectProgress = 0;
-        if (updatedParts.length > 0) {
-          const totalProjectProgress = updatedParts.reduce((acc, part) => acc + (part.progress || 0), 0);
-          newProjectProgress = Math.round(totalProjectProgress / updatedParts.length);
-        }
-
-        return { ...project, parts: updatedParts, progress: newProjectProgress };
-      });
-    };
-
-    const unsubscribers: Unsubscribe[] = [];
-
-    const projectsQuery = query(collection(db, "projects"));
-    const projectsUnsub = onSnapshot(projectsQuery, (querySnapshot) => {
-        const projectsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)).sort((a,b) => (a.order || 0) - (b.order || 0));
-        setTasks(currentTasks => {
-            const updatedProjects = processData(projectsData, currentTasks);
-            setProjects(updatedProjects);
-            return currentTasks;
-        });
-        markLoaded('projects');
-    }, (error) => console.error("Projects Snapshot Error:", error));
-    unsubscribers.push(projectsUnsub);
-
-    const tasksQuery = query(collection(db, "tasks"));
-    const tasksUnsub = onSnapshot(tasksQuery, (querySnapshot) => {
-        const tasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-        setProjects(currentProjects => {
-            const updatedProjects = processData(currentProjects, tasksData);
-            setProjects(updatedProjects);
-            return currentProjects;
-        });
-        setTasks(tasksData);
-        markLoaded('tasks');
-    }, (error) => console.error("Tasks Snapshot Error:", error));
-    unsubscribers.push(tasksUnsub);
-
-    const usersQuery = query(collection(db, "users"));
-    const usersUnsub = onSnapshot(usersQuery, (querySnapshot) => {
-        const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)).sort((a,b) => (a.order || 0) - (b.order || 0));
-        setUsers(usersData);
-        markLoaded('users');
-    }, (error) => console.error("Users Snapshot Error:", error));
-    unsubscribers.push(usersUnsub);
     
-    const commonDeptQuery = query(collection(db, "commonDepartments"));
-    const commonDeptUnsub = onSnapshot(commonDeptQuery, (querySnapshot) => {
-        const commonDeptData = querySnapshot.docs.map(doc => doc.data().name);
-        setCommonDepartments(commonDeptData);
-         markLoaded('commonDepartments');
-    }, (error) => console.error("Common Depts Snapshot Error:", error));
-    unsubscribers.push(commonDeptUnsub);
+    collectionsToFetch.forEach(({ name, setter }) => {
+        const unsub = onSnapshot(query(collection(db, name)), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setter(data);
+            onDataLoaded();
+        }, (error) => {
+            console.error(`Error fetching ${name}:`, error);
+            onDataLoaded();
+        });
+        unsubscribers.push(unsub);
+    });
 
-    const commonTasksQuery = query(collection(db, "commonTasks"));
-    const commonTasksUnsub = onSnapshot(commonTasksQuery, (querySnapshot) => {
-        const commonTasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommonTask));
-        setCommonTasks(commonTasksData);
-         markLoaded('commonTasks');
-    }, (error) => console.error("Common Tasks Snapshot Error:", error));
-    unsubscribers.push(commonTasksUnsub);
+    const unsubConfig = onSnapshot(doc(db, "appConfig", "main"), (docSnap) => {
+        setAppConfig(docSnap.exists() ? docSnap.data() as AppConfig : { logoUrl: null });
+        onDataLoaded();
+    }, (error) => {
+        console.error("Error fetching appConfig:", error);
+        onDataLoaded();
+    });
+    unsubscribers.push(unsubConfig);
+    
+    // Initial call in case some collections are empty
+    if (collectionsToFetch.length + 1 === 0) setLoading(false);
 
-    const appConfigRef = doc(db, "appConfig", "main");
-    const appConfigUnsub = onSnapshot(appConfigRef, (docSnap) => {
-        const appConfigData = docSnap.exists() ? docSnap.data() as AppConfig : { logoUrl: null };
-        setAppConfig(appConfigData);
-        markLoaded('appConfig');
-    }, (error) => console.error("App Config Snapshot Error:", error));
-    unsubscribers.push(appConfigUnsub);
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [firebaseUser]);
+    
+  useEffect(() => {
+    if (!loading && firebaseUser && pathname === '/') {
+        router.push('/dashboard');
+    }
+  }, [loading, firebaseUser, pathname, router]);
 
-    const userRolesQuery = query(collection(db, "userRoles"));
-    const userRolesUnsub = onSnapshot(userRolesQuery, (querySnapshot) => {
-        const userRolesData = querySnapshot.docs.map(doc => doc.data().name as UserRole);
-        const defaultRoles: UserRole[] = ['Admin', 'Manager', 'Oficina Técnica', 'Taller', 'Eléctrico', 'Comercial', 'Dirección de Proyecto', 'Dirección de Área'];
-        const combinedRoles = [...new Set([...defaultRoles, ...userRolesData])];
-        
-        const rolesToAdd = defaultRoles.filter(role => !userRolesData.includes(role));
-        if (rolesToAdd.length > 0) {
-            const batch = writeBatch(db);
-            rolesToAdd.forEach(role => {
-                const newRoleRef = doc(collection(db, "userRoles"));
-                batch.set(newRoleRef, { name: role });
-            });
-            batch.commit();
-        }
-        setUserRoles(combinedRoles);
-        markLoaded('userRoles');
-    }, (error) => console.error("User Roles Snapshot Error:", error));
-    unsubscribers.push(userRolesUnsub);
-
-    const areaColorsQuery = query(collection(db, "areaColors"));
-    const areaColorsUnsub = onSnapshot(areaColorsQuery, (querySnapshot) => {
-        if (querySnapshot.empty) {
-            const batch = writeBatch(db);
-            defaultAreaColors.forEach(color => {
-                const docRef = doc(db, "areaColors", color.name);
-                batch.set(docRef, color);
-            });
-            batch.commit().then(() => {
-                setAreaColors(defaultAreaColors);
-                markLoaded('areaColors');
-            });
-        } else {
-            const colorsData = querySnapshot.docs.map(doc => doc.data() as AreaColor);
-            setAreaColors(colorsData);
-            markLoaded('areaColors');
-        }
-    }, (error) => console.error("Area Colors Snapshot Error:", error));
-    unsubscribers.push(areaColorsUnsub);
-
-
-    return () => {
-        unsubscribers.forEach(unsub => unsub());
-    };
-  }, []);
-  
   const saveAppConfig = async (configUpdate: Partial<AppConfig>) => {
     const configRef = doc(db, 'appConfig', 'main');
-    const docSnap = await getDoc(configRef);
-    const currentConfig = docSnap.exists() ? docSnap.data() : {};
-    const newConfig = { ...currentConfig, ...configUpdate };
-    
-    await setDoc(configRef, newConfig, { merge: true });
+    await setDoc(configRef, configUpdate, { merge: true });
   };
 
   const saveCommonDepartment = useCallback(async (departmentName: string) => {
@@ -284,7 +278,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           name: partName || `Nuevo Parte ${project.parts?.length || 0 + 1}`,
           stages: [],
           progress: 0,
-          attachments: []
       };
       
       const updatedProject = { ...project, parts: [...(project.parts || []), newPart] };
@@ -292,75 +285,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       
       return newPart;
   };
-
-    const addAttachmentToPart = async (projectId: string, partId: string, file: File): Promise<Attachment | null> => {
-        if (!projects || !users) return null;
-        const project = projects.find(p => p.id === projectId);
-        if (!project) return null;
-
-        const currentUser = users.find(u => u.role === "Admin") || users[0];
-        if (!currentUser) throw new Error("User not found.");
-        
-        const safeName = file.name.replace(/[^\\w.\\-]/g, "_");
-        const path = `uploads/projects/${projectId}/${partId}/${Date.now()}_${safeName}`;
-
-        try {
-            const url = await uploadFile(file, path);
-            
-            const newAttachment: Attachment = {
-                id: crypto.randomUUID(),
-                name: file.name,
-                url: url,
-                path: path,
-                size: file.size,
-                type: file.type || 'application/octet-stream',
-                uploadedAt: new Date().toISOString(),
-                uploadedBy: currentUser.id,
-            };
-
-            const updatedParts = (project.parts || []).map(part => {
-                if (part.id === partId) {
-                    return { ...part, attachments: [...(part.attachments || []), newAttachment] };
-                }
-                return part;
-            });
-
-            const updatedProject = { ...project, parts: updatedParts };
-            await saveProject(updatedProject);
-            
-            return newAttachment;
-
-        } catch (error) {
-            console.error("Error adding attachment:", error);
-            throw error; // Re-throw to be caught by the UI
-        }
-    };
-  
-    const deleteAttachmentFromPart = async (projectId: string, partId: string, attachmentId: string): Promise<void> => {
-       if (!projects) return;
-       const project = projects.find(p => p.id === projectId);
-        if (!project) return;
-
-        const part = project.parts?.find(p => p.id === partId);
-        const attachment = part?.attachments?.find(a => a.id === attachmentId);
-
-        if (!attachment) return;
-
-        // Delete from Firebase Storage
-        const fileRef = ref(storage, attachment.path);
-        await deleteObject(fileRef);
-
-        const updatedParts = project.parts?.map(p => {
-            if (p.id === partId) {
-                const attachments = p.attachments?.filter(att => att.id !== attachmentId);
-                return { ...p, attachments };
-            }
-            return p;
-        });
-
-        const updatedProject = { ...project, parts: updatedParts };
-        await saveProject(updatedProject);
-    };
 
   const getProjectById = useCallback((id: string) => projects?.find(p => p.id === id), [projects]);
   const getTasksByProjectId = useCallback((projectId: string) => tasks?.filter(t => t.projectId === projectId) || [], [tasks]);
@@ -376,9 +300,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updatedProject = { ...projectData, id: newId, order };
     }
     
-    // Create a deep copy for Firestore to avoid issues with custom objects or undefined values
-    const projectForDb = JSON.parse(JSON.stringify(updatedProject));
-    await setDoc(doc(db, "projects", projectForDb.id), projectForDb);
+    await setDoc(doc(db, "projects", updatedProject.id), updatedProject);
 
     return updatedProject;
   };
@@ -399,15 +321,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const saveTask = async (taskData: Omit<Task, 'id'> | Task): Promise<Task> => {
     let updatedTask: Task;
 
-    if ('id' in taskData) {
-        updatedTask = { ...taskData };
+    const taskToSave: any = { ...taskData };
+    if (taskToSave.assignedToId === undefined) {
+      delete taskToSave.assignedToId;
+    }
+
+    if ('id' in taskToSave) {
+        updatedTask = taskToSave;
     } else {
         const newId = doc(collection(db, "tasks")).id;
-        updatedTask = { ...taskData, id: newId } as Task;
+        updatedTask = { ...taskToSave, id: newId } as Task;
     }
     
-    const taskForDb = JSON.parse(JSON.stringify(updatedTask));
-    await setDoc(doc(db, "tasks", taskForDb.id), taskForDb);
+    await setDoc(doc(db, "tasks", updatedTask.id), updatedTask, { merge: true });
 
     return updatedTask;
   };
@@ -429,8 +355,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updatedUser = { ...user, id: newId, order };
     }
 
-    const userForDb = JSON.parse(JSON.stringify(updatedUser));
-    await setDoc(doc(db, "users", userForDb.id), userForDb);
+    await setDoc(doc(db, "users", updatedUser.id), updatedUser);
 
     return updatedUser;
   };
@@ -439,7 +364,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     await deleteDoc(doc(db, "users", userId));
     
     if (!tasks) return;
-    // Unassign tasks from deleted user
     const tasksToUpdate = tasks.filter(t => t.assignedToId === userId);
     const batch = writeBatch(db);
     tasksToUpdate.forEach(task => {
@@ -476,6 +400,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     commonDepartments,
     commonTasks,
     loading,
+    firebaseUser,
     getProjectById,
     getTasksByProjectId,
     getUsers,
@@ -488,17 +413,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     saveUserRole,
     deleteUserRole,
     addPartToProject,
-    addAttachmentToPart,
-    deleteAttachmentFromPart,
     saveCommonDepartment,
     saveCommonTask,
     deleteCommonTask,
     saveAppConfig,
-    uploadFile,
     saveAreaColor,
-    setProjects,
+    setProjects: setRawProjects,
     setUsers,
+    uploadFile,
   };
+
+  if (loading && pathname !== '/') {
+       return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+      )
+  }
+  
+  if (loading || (pathname === '/' && !firebaseUser)) {
+       return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <AutoLoginForm />
+          </div>
+      )
+  }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
@@ -510,3 +449,5 @@ export const useData = () => {
   }
   return context;
 };
+
+    

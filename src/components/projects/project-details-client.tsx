@@ -10,8 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit, Play, Pause } from 'lucide-react';
-import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, Attachment, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
+import { CalendarIcon, UsersIcon, CheckCircle, Wrench, Zap, Code, Factory, PlusCircle, MoreHorizontal, Pencil, Trash2, UserSquare, XCircle, PenSquare, Edit, Archive, FolderPlus, ChevronDown, Palette, History, MessageSquare, Save, Paperclip, FileDown, Loader2, BrainCircuit, Play, Pause, ClipboardList, LayoutGrid, Rows, DraftingCompass, Frame, Scissors, Flame, Construction, Cable, FlaskConical, Cog, Truck, ChevronsUpDown, Clock, Timer } from 'lucide-react';
+import type { TaskComponent, Task, User, Project, ProjectNote, TaskStatus, Part, Signature, TaskComment, CommonTask, ProjectAlerts, AlertItem, AreaColor } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -36,38 +36,46 @@ import {
 import TaskFormModal from '@/components/projects/task-form-modal';
 import TaskNotesModal from '@/components/projects/task-notes-modal';
 import TaskDescriptionModal from '@/components/projects/task-description-modal';
+import TaskSignatureModal from '@/components/projects/task-signature-modal';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useData } from '@/hooks/use-data';
-import PartsRoadmap from './parts-roadmap';
-import { Input } from '../ui/input';
-import EditableField from '../ui/editable-field';
-import ProjectColorPicker from './project-color-picker';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import ProjectEditModal from './project-edit-modal';
+import PartsRoadmap from '@/components/projects/parts-roadmap';
+import { Input } from '@/components/ui/input';
+import EditableField from '@/components/ui/editable-field';
+import ProjectColorPicker from '@/components/projects/project-color-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ProjectEditModal from '@/components/projects/project-edit-modal';
 import { generatePendingTasksPdf } from '@/lib/pdf-generator';
-import ProjectFiles from './project-files';
-import ProjectAlerts from './project-alerts';
+import ProjectAlerts from '@/components/projects/project-alerts';
 import { generateDailySummary } from '@/ai/flows/generate-daily-summary';
 import type { DailySummaryOutput } from '@/ai/flows/generate-daily-summary.types';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
-import { startOfDay, endOfDay, addDays, isBefore } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { startOfDay, endOfDay, addDays, isBefore, differenceInCalendarDays, isPast, isToday } from 'date-fns';
+import { es } from 'date-fns/locale';
 import AreaColorPicker from './area-color-picker';
+import PdfOptionsModal, { type PdfSelection } from './pdf-options-modal';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import TaskIconPicker from './task-icon-picker';
+import ProjectQRCode from './project-qr-code';
+import { Calendar } from '../ui/calendar';
+import SignatureHistory from './signature-history';
 
 
 const componentIcons: Record<string, React.ReactNode> = {
-    'Estructura': <Wrench className="h-4 w-4 mr-2" />,
-    'Cableado': <Zap className="h-4 w-4 mr-2" />,
+    'Diseño': <Cog className="h-4 w-4 mr-2" />,
+    'Estructura': <Frame className="h-4 w-4 mr-2" />,
+    'Corte': <Scissors className="h-4 w-4 mr-2" />,
+    'Soldadura': <Flame className="h-4 w-4 mr-2" />,
+    'Montaje': <Wrench className="h-4 w-4 mr-2" />,
+    'Cableado': <Cable className="h-4 w-4 mr-2" />,
+    'Eléctrico': <Zap className="h-4 w-4 mr-2" />,
     'Programación': <Code className="h-4 w-4 mr-2" />,
-    'Ensamblaje': <Factory className="h-4 w-4 mr-2" />,
-    'Diseño': <Wrench className="h-4 w-4 mr-2" />,
-    'Corte': <Zap className="h-4 w-4 mr-2" />,
-    'Soldadura': <Code className="h-4 w-4 mr-2" />,
-    'Montaje': <Factory className="h-4 w-4 mr-2" />,
     'Pruebas': <CheckCircle className="h-4 w-4 mr-2" />,
     'Fabricacion': <Factory className="h-4 w-4 mr-2" />,
-    'Eléctrico': <Zap className="h-4 w-4 mr-2" />,
+    'Ensamblaje': <Construction className="h-4 w-4 mr-2" />,
+    'Logistica': <Truck className="h-4 w-4 mr-2" />,
 }
 
 const statusColorClasses: Record<TaskStatus, string> = {
@@ -78,65 +86,91 @@ const statusColorClasses: Record<TaskStatus, string> = {
     finalizada: 'bg-green-100 text-green-800',
 };
 
-function ClientSideDate({ dateString, format = 'dd/MM/yyyy' }: { dateString: string, format?: 'dd/MM/yyyy' | 'PPpp' }){
+function ClientSideDate({ dateString, className, format = 'dd/MM/yyyy' }: { dateString?: string, className?: string, format?: string }){
     const [formattedDate, setFormattedDate] = useState('');
 
     useEffect(() => {
-        const { format: formatDate, es } = require('date-fns');
-        setFormattedDate(formatDate(new Date(dateString), format, { locale: es }));
+        if (dateString) {
+            const { format: formatDate, es } = require('date-fns');
+            setFormattedDate(formatDate(new Date(dateString), format, { locale: es }));
+        } else {
+            setFormattedDate('');
+        }
     }, [dateString, format]);
 
-    return <>{formattedDate}</>;
+    return <span className={className}>{formattedDate}</span>;
 };
 
-function SignatureHistory({ history, users }: { history: Signature[], users: User[] }) {
-    const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Desconocido';
-    
-    if (!history || history.length === 0) {
-        return null;
+
+const deadlineBadgeConfig = {
+  delayed: {
+    dot: 'bg-red-500',
+    badge: 'bg-red-100 text-red-700',
+    tooltip: 'Retrasada: La fecha de entrega ya ha pasado.',
+  },
+  soon: {
+    dot: 'bg-yellow-500',
+    badge: 'bg-yellow-100 text-yellow-700',
+    tooltip: 'Vence pronto: La tarea vence hoy o en los próximos 2 días.',
+  },
+  onTime: {
+    dot: 'bg-green-500',
+    badge: 'bg-green-100 text-green-700',
+    tooltip: 'En tiempo: Quedan más de 2 días.',
+  },
+};
+
+const DeadlineBadge = ({ deadline }: { deadline: string }) => {
+  const deadlineDate = new Date(deadline);
+  const today = new Date();
+  let status: keyof typeof deadlineBadgeConfig = 'onTime';
+
+  if (isPast(deadlineDate) && !isToday(deadlineDate)) {
+    status = 'delayed';
+  } else {
+    const daysUntilDeadline = differenceInCalendarDays(deadlineDate, today);
+    if (daysUntilDeadline <= 2) {
+      status = 'soon';
     }
+  }
 
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <History className="h-4 w-4 text-muted-foreground" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                <div className="space-y-2">
-                    <h4 className="font-medium leading-none">Historial de Firmas</h4>
-                    <p className="text-sm text-muted-foreground">
-                    Registro de todas las veces que esta tarea ha sido marcada como finalizada.
-                    </p>
-                </div>
-                <div className="grid gap-2">
-                   {history.map((sig, index) => (
-                     <div key={index} className="grid grid-cols-[auto_1fr] items-center gap-x-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{index + 1}.</span>
-                        </div>
-                        <div className="text-sm">
-                            <span className="font-semibold">{getUserName(sig.userId)}</span>
-                            <div className="text-xs text-muted-foreground">
-                                <ClientSideDate dateString={sig.date} format="PPpp" />
-                            </div>
-                        </div>
-                    </div>
-                   ))}
-                </div>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
-}
+  const config = deadlineBadgeConfig[status];
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger>
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-xs font-semibold capitalize border-none px-2 py-1 inline-flex items-center gap-2',
+              config.badge
+            )}
+          >
+            <div className={cn('h-1.5 w-1.5 rounded-full', config.dot)}></div>
+            <ClientSideDate dateString={deadline} />
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{config.tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 
-function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
+type AreaLayout = 'fila' | 'cuadricula';
+type SortKey = 'title' | 'assignedToName' | 'status' | 'startDate' | 'deadline' | 'estimatedTime';
+type SortDirection = 'asc' | 'desc';
+
+
+function TasksByComponent({ tasks, users, project, commonTasks, commonDepartments, onTaskUpdate, onTaskDelete, selectedPart, onDepartmentAdd, onDepartmentDelete, onDepartmentNameChange, openNotesModal, openDescriptionModal, onSignTask, onUndoSignTask, onSaveCommonDepartment }: { tasks: Task[], users: User[], project: Project, commonTasks: any[], commonDepartments: string[], onTaskUpdate: (task: Task | Omit<Task, 'id'>) => void, onTaskDelete: (taskId: string) => void, selectedPart: Part | null, onDepartmentAdd: (partId: string, stageName: TaskComponent) => void, onDepartmentDelete: (partId: string, stageName: string) => void, onDepartmentNameChange: (partId: string, oldStageName: string, newStageName: string) => void, openNotesModal: (task: Task) => void, openDescriptionModal: (task: Task) => void, onSignTask: (task: Task, userId: string, workDescription: string, actualTime: number) => void, onUndoSignTask: (task: Task) => void, onSaveCommonDepartment: (name: string) => void }) {
     
     const getUserName = (id?: string) => users.find(u => u.id === id)?.name || 'Sin asignar';
     const { areaColors } = useData();
+    const [areaLayout, setAreaLayout] = useState<AreaLayout>('fila');
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
     
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -147,6 +181,20 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
     const [newCommonDept, setNewCommonDept] = useState("");
     const { toast } = useToast();
     const { projects } = useData();
+
+    const [taskToSign, setTaskToSign] = useState<Task | null>(null);
+    const [signingUser, setSigningUser] = useState<User | null>(null);
+    
+    const handleAssigneeChange = (task: Task, newAssigneeId: string) => {
+        const updatedTask = { ...task, assignedToId: newAssigneeId === 'unassigned' ? undefined : newAssigneeId };
+        onTaskUpdate(updatedTask);
+    };
+
+    const handleDateChange = (task: Task, field: 'startDate' | 'deadline', date: Date | undefined) => {
+        if (date) {
+            onTaskUpdate({ ...task, [field]: date.toISOString() });
+        }
+    };
 
     const handleOpenModalForNew = (component: TaskComponent) => {
         setEditingTask(null);
@@ -184,7 +232,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
     }
     
     const allCommonDepartments = useMemo(() => {
-        const defaultStages: TaskComponent[] = ['Diseño', 'Soldadura', 'Montaje', 'Pruebas'];
+        const defaultStages: TaskComponent[] = ['Diseño', 'Soldadura', 'Montaje', 'Pruebas', 'Logistica'];
         const combined = [...defaultStages, ...commonDepartments];
         return [...new Set(combined)]; // Remove duplicates
     }, [commonDepartments]);
@@ -211,6 +259,41 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
             setNewCommonDept("");
         }
     }
+    
+    const handleSort = (key: SortKey) => {
+        let direction: SortDirection = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedTasks = (tasksToSort: Task[]) => {
+        if (!sortConfig) {
+            return tasksToSort;
+        }
+
+        return [...tasksToSort].sort((a, b) => {
+            let aValue: any;
+            let bValue: any;
+
+            if (sortConfig.key === 'assignedToName') {
+                aValue = getUserName(a.assignedToId);
+                bValue = getUserName(b.assignedToId);
+            } else {
+                aValue = a[sortConfig.key as keyof Task];
+                bValue = b[sortConfig.key as keyof Task];
+            }
+
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    };
 
     const partStages = project.parts.find(p => p.id === selectedPart.id)?.stages || [];
     const partTasks = tasks.filter(t => t.partId === selectedPart.id);
@@ -225,15 +308,42 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
 
     return (
         <div className="space-y-6">
-            <div className="space-y-8">
+            <div className="flex justify-end">
+                <div className="inline-flex items-center rounded-md bg-muted p-1">
+                    <Button variant={areaLayout === 'fila' ? 'secondary' : 'ghost'} size="sm" onClick={() => setAreaLayout('fila')} className="h-8 px-3">
+                        <Rows className="h-4 w-4 mr-2" /> Fila
+                    </Button>
+                     <Button variant={areaLayout === 'cuadricula' ? 'secondary' : 'ghost'} size="sm" onClick={() => setAreaLayout('cuadricula')} className="h-8 px-3">
+                        <LayoutGrid className="h-4 w-4 mr-2" /> Cuadrícula
+                    </Button>
+                </div>
+            </div>
+            <div className={cn(
+                areaLayout === 'fila' ? "space-y-6" : "grid grid-cols-1 md:grid-cols-2 gap-6"
+            )}>
                 {partStages.map(stage => {
                     const colors = areaColors?.find(c => c.name === stage.nombre) || areaColors?.find(c => c.name === 'default');
                     const stageTasks = partTasks.filter(t => t.component === stage.nombre);
+                    const pendingTasks = sortedTasks(stageTasks.filter(t => t.status !== 'finalizada'));
+                    const completedTasks = stageTasks.filter(t => t.status === 'finalizada').sort((a,b) => new Date(b.finalizedAt!).getTime() - new Date(a.finalizedAt!).getTime());
 
                     if (!colors) return null;
 
+                    const SortableHeader = ({ sortKey, children }: { sortKey: SortKey, children: React.ReactNode }) => (
+                         <Button variant="ghost" onClick={() => handleSort(sortKey)} className="px-1 py-0 h-auto" style={{ color: colors.textColor }}>
+                            {children}
+                            {sortConfig?.key === sortKey && (
+                                <ChevronsUpDown className="ml-2 h-3 w-3" />
+                            )}
+                        </Button>
+                    );
+
                     return (
-                        <div key={stage.nombre} className="rounded-lg p-4 space-y-4" style={{ backgroundColor: colors.bgColor, color: colors.textColor }}>
+                        <div 
+                            key={stage.nombre} 
+                            className="rounded-lg p-4 space-y-4 border-2" 
+                            style={{ backgroundColor: colors.bgColor, color: colors.textColor, borderColor: colors.textColor }}
+                        >
                             <div className="space-y-2">
                                 <div className="group flex items-center gap-2">
                                     <h3 className="font-semibold text-lg flex items-center capitalize" style={{ color: colors.textColor }}>
@@ -249,7 +359,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
-                                 <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor', backgroundColor: 'transparent' }}>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenModalForNew(stage.nombre as TaskComponent)} style={{ color: colors.textColor, borderColor: 'currentColor', backgroundColor: 'transparent' }}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Añadir Tarea
                                 </Button>
@@ -257,37 +367,55 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                             <Table className="bg-card/50 rounded-md">
                                 <TableHeader>
                                     <TableRow className="border-b-foreground/10">
-                                        <TableHead style={{ color: colors.textColor }}>Tarea</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Asignado a</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Estado</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Entrega</TableHead>
-                                        <TableHead style={{ color: colors.textColor }}>Tiempo (Est/Real)</TableHead>
+                                        <TableHead><SortableHeader sortKey="title">Tarea</SortableHeader></TableHead>
+                                        <TableHead><SortableHeader sortKey="assignedToName">Asignado a</SortableHeader></TableHead>
+                                        <TableHead><SortableHeader sortKey="status">Estado</SortableHeader></TableHead>
+                                        <TableHead><SortableHeader sortKey="startDate">Inicio</SortableHeader></TableHead>
+                                        <TableHead><SortableHeader sortKey="deadline">Entrega</SortableHeader></TableHead>
+                                        <TableHead><SortableHeader sortKey="estimatedTime">Tiempo (Est)</SortableHeader></TableHead>
                                         <TableHead style={{ color: colors.textColor }}>Acciones</TableHead>
                                         <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {stageTasks.map(task => (
-                                        <TableRow key={task.id} onDoubleClick={() => handleOpenModalForEdit(task)} className="cursor-pointer bg-card/50 hover:bg-card/90 border-b-foreground/10">
-                                            <TableCell className="text-foreground">{task.title}</TableCell>
-                                            <TableCell className="text-foreground">{getUserName(task.assignedToId)}</TableCell>
+                                    {pendingTasks.map(task => (
+                                        <TableRow key={task.id} className="bg-card/50 hover:bg-card/90 border-b-foreground/10">
+                                            <TableCell>
+                                                <div className="flex items-center">
+                                                    <TaskIconPicker task={task} onTaskUpdate={onTaskUpdate as (t:Task) => void} />
+                                                    <EditableField
+                                                        initialValue={task.title}
+                                                        onSave={(newTitle) => onTaskUpdate({ ...task, title: newTitle })}
+                                                        label="Título de la tarea"
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Select onValueChange={(value) => handleAssigneeChange(task, value)} value={task.assignedToId || 'unassigned'}>
+                                                    <SelectTrigger className="h-8 w-full min-w-[150px]">
+                                                        <SelectValue placeholder="Sin asignar" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="unassigned">Sin asignar</SelectItem>
+                                                        {users.map(user => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    {task.status === 'finalizada' ? (
+                                                    {task.status === 'pendiente' || task.status === 'en-progreso' ? (
                                                         <>
-                                                            <div className="flex items-center text-xs text-green-700 font-medium">
-                                                                <PenSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                                                                <div>
-                                                                    <div>Firmado por {getUserName(task.finalizedByUserId)}</div>
-                                                                    {task.finalizedAt && <div className="text-muted-foreground font-normal"><ClientSideDate dateString={task.finalizedAt} /></div>}
-                                                                </div>
-                                                            </div>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onUndoSignTask(task)}>
-                                                                <XCircle className="h-4 w-4 text-muted-foreground" />
-                                                            </Button>
-                                                        </>
-                                                    ) : (
-                                                        <>
+                                                            {task.status === 'pendiente' ? (
+                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'en-progreso')} className="text-yellow-600 hover:text-yellow-700">
+                                                                    <Play className="h-4 w-4 mr-2" />
+                                                                    Pendiente
+                                                                </Button>
+                                                            ) : (
+                                                                <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'pendiente')} className="text-blue-600 hover:text-blue-700">
+                                                                    <Pause className="h-4 w-4 mr-2" />
+                                                                    En Progreso
+                                                                </Button>
+                                                            )}
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
                                                                     <Button variant="outline" size="sm">
@@ -295,11 +423,14 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                                         Firmar
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="start">
+                                                                <DropdownMenuContent align="start" className="max-h-60 overflow-y-auto">
                                                                     <DropdownMenuLabel>Seleccionar responsable</DropdownMenuLabel>
                                                                     <DropdownMenuSeparator />
                                                                     {users.map(user => (
-                                                                        <DropdownMenuItem key={user.id} onSelect={() => onSignTask(task, user.id)}>
+                                                                        <DropdownMenuItem key={user.id} onSelect={() => {
+                                                                            setTaskToSign(task);
+                                                                            setSigningUser(user);
+                                                                        }}>
                                                                             <Avatar className="w-5 h-5 mr-2">
                                                                                 <AvatarImage src={user.avatar} />
                                                                                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
@@ -309,41 +440,65 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                                     ))}
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
-                                                            {task.status === 'pendiente' || task.status === 'en-progreso' ? (
-                                                                <>
-                                                                    {task.status === 'pendiente' ? (
-                                                                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'en-progreso')} className="text-yellow-600 hover:text-yellow-700">
-                                                                            <Play className="h-4 w-4 mr-2" />
-                                                                            Pendiente
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(task, 'pendiente')} className="text-blue-600 hover:text-blue-700">
-                                                                            <Pause className="h-4 w-4 mr-2" />
-                                                                            En Progreso
-                                                                        </Button>
-                                                                    )}
-                                                                </>
-                                                            ) : (
-                                                                 <Badge variant="secondary" className={cn("capitalize text-xs border-0", statusColorClasses[task.status])}>
-                                                                    {task.status.replace('-', ' ')}
-                                                                </Badge>
-                                                            )}
                                                         </>
+                                                    ) : (
+                                                        <Badge variant="secondary" className={cn("capitalize text-xs border-0", statusColorClasses[task.status])}>
+                                                            {task.status.replace('-', ' ')}
+                                                        </Badge>
                                                     )}
-                                                     <SignatureHistory history={task.signatureHistory || []} users={users} />
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-foreground">
-                                                <ClientSideDate dateString={task.deadline} />
+                                            <TableCell>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="ghost" className="px-2 font-normal">
+                                                            <ClientSideDate dateString={task.startDate} />
+                                                            <CalendarIcon className="ml-2 h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={new Date(task.startDate)}
+                                                            onSelect={(date) => handleDateChange(task, 'startDate', date)}
+                                                            initialFocus
+                                                            locale={es}
+                                                            weekStartsOn={1}
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
                                             </TableCell>
-                                            <TableCell className="text-foreground">{task.estimatedTime}h / {task.actualTime > 0 ? `${task.actualTime}h` : '-'}</TableCell>
+                                            <TableCell>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                         <Button variant="ghost" className="px-2 font-normal">
+                                                            <ClientSideDate dateString={task.deadline} />
+                                                            <CalendarIcon className="ml-2 h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={new Date(task.deadline)}
+                                                            onSelect={(date) => handleDateChange(task, 'deadline', date)}
+                                                            initialFocus
+                                                            locale={es}
+                                                            weekStartsOn={1}
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </TableCell>
+                                            <TableCell>
+                                                <EditableField
+                                                    initialValue={String(task.estimatedTime)}
+                                                    onSave={(newTime) => onTaskUpdate({ ...task, estimatedTime: Number(newTime) })}
+                                                    label="Tiempo estimado"
+                                                />
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Button variant="outline" size="sm" onClick={() => openDescriptionModal(task)}>
                                                         Descripción
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" onClick={() => openNotesModal(task)}>
-                                                        Notas ({task.comments?.length || 0})
                                                     </Button>
                                                 </div>
                                             </TableCell>
@@ -355,7 +510,7 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent>
-                                                         <DropdownMenuItem onClick={() => handleOpenModalForEdit(task)}>
+                                                        <DropdownMenuItem onClick={() => handleOpenModalForEdit(task)}>
                                                             <Pencil className="mr-2 h-4 w-4" />
                                                             Editar Tarea Completa
                                                         </DropdownMenuItem>
@@ -369,69 +524,129 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {stageTasks.length === 0 && (
+                                    {pendingTasks.length === 0 && (
                                         <TableRow className="border-b-foreground/10">
                                             <TableCell colSpan={8} className="text-center text-muted-foreground py-10 bg-card/50">
-                                                Aún no hay tareas para esta área.
+                                                No hay tareas pendientes en esta área.
                                             </TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
+                            {completedTasks.length > 0 && (
+                                <Accordion type="single" collapsible className="w-full">
+                                    <AccordionItem value="completed-tasks" className="border-none">
+                                        <AccordionTrigger className="text-sm font-medium" style={{ color: colors.textColor }}>
+                                            Ver {completedTasks.length} Tareas Finalizadas
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table className="bg-card/50 rounded-md">
+                                                 <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Tarea</TableHead>
+                                                        <TableHead>Horas (Est/Real)</TableHead>
+                                                        <TableHead>Finalización</TableHead>
+                                                        <TableHead>Acciones</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {completedTasks.map(task => (
+                                                        <TableRow key={task.id} className="bg-card/50 hover:bg-card/90 border-b-foreground/10">
+                                                             <TableCell className="text-foreground">
+                                                                <div className="flex items-center gap-2">
+                                                                    <TaskIconPicker task={task} onTaskUpdate={onTaskUpdate as (t:Task) => void} />
+                                                                    {task.title}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-foreground">
+                                                                {`${task.estimatedTime}h / ${task.actualTime || '-'}h`}
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex items-center text-xs text-green-700 font-medium">
+                                                                        <PenSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                                                                        <div>
+                                                                            <div>Firmado por {getUserName(task.finalizedByUserId)}</div>
+                                                                            {task.finalizedAt && <div className="text-muted-foreground font-normal"><ClientSideDate dateString={task.finalizedAt} /></div>}
+                                                                        </div>
+                                                                    </div>
+                                                                     <div className='flex items-center gap-1' onClick={(e) => e.stopPropagation()}>
+                                                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onUndoSignTask(task)}>
+                                                                            <XCircle className="h-4 w-4 text-muted-foreground" />
+                                                                        </Button>
+                                                                        <SignatureHistory history={task.signatureHistory || []} users={users} />
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Button variant="outline" size="sm" onClick={() => openDescriptionModal(task)}>
+                                                                        Descripción
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Accordion>
+                            )}
                         </div>
                     )
                 })}
+            </div>
 
-                 <div className="p-4 border-2 border-dashed rounded-lg flex items-center gap-4">
-                    <FolderPlus className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-grow flex items-center gap-2">
-                        <Input 
-                            placeholder="Nombre de la nueva área personalizada"
-                            value={newStageName}
-                            onChange={(e) => setNewStageName(e.target.value)}
-                            className="flex-grow"
-                        />
-                        <Button onClick={handleAddCustomStage}>Añadir Personalizada</Button>
-                    </div>
-                    <div className="border-l pl-4">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    Añadir Área
-                                    <ChevronDown className="h-4 w-4 ml-2" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuLabel>Áreas Comunes</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {allCommonDepartments.map(stage => (
-                                    <DropdownMenuItem key={stage} onSelect={() => onDepartmentAdd(selectedPart.id, stage as TaskComponent)}>
-                                        {stage}
-                                    </DropdownMenuItem>
-                                ))}
-                                <DropdownMenuSeparator />
-                                <div className='p-2 space-y-2'>
-                                    <p className="text-xs font-semibold text-muted-foreground px-1">Añadir nuevo al baúl</p>
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            placeholder="Nueva área..."
-                                            value={newCommonDept}
-                                            onChange={(e) => setNewCommonDept(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="h-8"
-                                        />
-                                        <Button
-                                            size="sm"
-                                            onClick={handleAddAndSaveCommon}
-                                            disabled={!newCommonDept.trim()}
-                                        >
-                                            Añadir y Guardar
-                                        </Button>
-                                    </div>
+             <div className="p-4 border-2 border-dashed rounded-lg flex items-center gap-4">
+                <FolderPlus className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                <div className="flex-grow flex items-center gap-2">
+                    <Input 
+                        placeholder="Nombre de la nueva área personalizada"
+                        value={newStageName}
+                        onChange={(e) => setNewStageName(e.target.value)}
+                        className="flex-grow"
+                    />
+                    <Button onClick={handleAddCustomStage}>Añadir Personalizada</Button>
+                </div>
+                <div className="border-l pl-4">
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                Añadir Área
+                                <ChevronDown className="h-4 w-4 ml-2" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuLabel>Áreas Comunes</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {allCommonDepartments.map(stage => (
+                                <DropdownMenuItem key={stage} onSelect={() => onDepartmentAdd(selectedPart.id, stage as TaskComponent)}>
+                                    {stage}
+                                </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <div className='p-2 space-y-2'>
+                                <p className="text-xs font-semibold text-muted-foreground px-1">Añadir nuevo al baúl</p>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        placeholder="Nueva área..."
+                                        value={newCommonDept}
+                                        onChange={(e) => setNewCommonDept(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="h-8"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        onClick={handleAddAndSaveCommon}
+                                        disabled={!newCommonDept.trim()}
+                                    >
+                                        Añadir y Guardar
+                                    </Button>
                                 </div>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
              <TaskFormModal 
@@ -447,7 +662,16 @@ function TasksByComponent({ tasks, users, project, commonTasks, commonDepartment
                 prefillData={prefillData}
                 commonTasks={commonTasks}
             />
-        </div>
+            {taskToSign && signingUser && (
+                <TaskSignatureModal
+                    isOpen={!!taskToSign}
+                    onClose={() => setTaskToSign(null)}
+                    task={taskToSign}
+                    user={signingUser}
+                    onConfirm={onSignTask}
+                />
+            )}
+    </div>
     )
 }
 
@@ -566,15 +790,14 @@ const getContrastingTextColor = (hexcolor?: string): string => {
     return (yiq >= 128) ? 'hsl(240 2% 11%)' : 'hsl(0 0% 100%)';
 }
 
-export default function ProjectDetailsClient({ project: initialProject, tasks: initialTasks, users }: { project: Project, tasks: Task[], users: User[] }) {
-    const { saveProject, saveTask, deleteTask, addPartToProject, addAttachmentToPart, deleteAttachmentFromPart, commonTasks, commonDepartments, saveCommonDepartment, appConfig, areaColors, saveAreaColor } = useData();
+export default function ProjectDetailsClient({ project: initialProject, users }: { project: Project; users: User[] }) {
+    const { projects, saveProject, tasks: allTasks, saveTask, deleteTask, addPartToProject, commonTasks, commonDepartments, saveCommonDepartment, appConfig, areaColors, saveAreaColor } = useData();
     const [selectedPart, setSelectedPart] = useState<Part | null>(null);
     const { toast } = useToast();
     const router = useRouter();
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-    const [summaryContent, setSummaryContent] = useState<DailySummaryOutput | null>(null);
-    const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
+    const [isTasksDialogOpen, setIsTasksDialogOpen] = useState(false);
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
     const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
     const [isDescriptionModalOpen, setIsDescriptionModalOpen] = useState(false);
@@ -582,13 +805,9 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
     const [taskForDescription, setTaskForDescription] = useState<Task | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    const [internalProject, setInternalProject] = useState(initialProject);
-    const internalTasks = useMemo(() => initialTasks.filter(t => t.projectId === internalProject.id), [initialTasks, internalProject.id]);
+    const internalProject = useMemo(() => projects?.find(p => p.id === initialProject.id) || initialProject, [projects, initialProject]);
+    const internalTasks = useMemo(() => allTasks?.filter(t => t.projectId === internalProject.id) || [], [allTasks, internalProject.id]);
     
-     useEffect(() => {
-        setInternalProject(initialProject);
-    }, [initialProject]);
-
     useEffect(() => {
         if (internalProject.parts && internalProject.parts.length > 0 && !selectedPart) {
             setSelectedPart(internalProject.parts[0]);
@@ -624,6 +843,8 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         }
     }, [internalProject.color]);
     
+    const [projectAlerts, setProjectAlerts] = useState<ProjectAlerts | undefined>(internalProject.alerts);
+
     useEffect(() => {
         // Recalculate alerts whenever tasks change
         const isDone = (task: Task) => task.status === 'finalizada';
@@ -661,11 +882,11 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             ]
         };
 
-        if (JSON.stringify(newAlerts.counters) !== JSON.stringify(internalProject.alerts?.counters)) {
-             setInternalProject(prev => ({ ...prev, alerts: newAlerts }));
+        if (JSON.stringify(newAlerts.counters) !== JSON.stringify(projectAlerts?.counters)) {
+            setProjectAlerts(newAlerts);
         }
 
-    }, [internalTasks, internalProject.id, internalProject.alerts]);
+    }, [internalTasks, internalProject.id, internalProject.alerts, projectAlerts]);
 
     const handleOpenNotesModal = (task: Task) => {
         const latestTask = internalTasks.find(t => t.id === task.id) || task;
@@ -683,14 +904,15 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveTask(updatedTaskData);
     };
 
-    const handleSignTask = (task: Task, userId: string) => {
+    const handleSignTask = (task: Task, userId: string, workDescription: string, actualTime: number) => {
         const now = new Date().toISOString();
-        const newSignature = { userId, date: now };
+        const newSignature: Signature = { userId, date: now, workDescription };
         
         const updatedTask: Task = {
             ...task,
             status: 'finalizada',
             progress: 100,
+            actualTime,
             finalizedByUserId: userId,
             finalizedAt: now,
             signatureHistory: [...(task.signatureHistory || []), newSignature],
@@ -846,10 +1068,10 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
         await saveProject(updatedProject);
     }
 
-    const handleGeneratePdf = async () => {
+    const handleGeneratePdf = async (selection: PdfSelection) => {
         setIsGeneratingPdf(true);
         try {
-            await generatePendingTasksPdf(internalProject, internalTasks, users, appConfig.logoUrl, areaColors);
+            await generatePendingTasksPdf(internalProject, internalTasks, users, appConfig.logoUrl, areaColors, selection);
             toast({
                 title: "PDF Generado",
                 description: "El archivo de tareas pendientes se ha descargado.",
@@ -863,53 +1085,13 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
             });
         } finally {
             setIsGeneratingPdf(false);
+            setIsPdfModalOpen(false);
         }
-    };
-
-    const handleGenerateDailySummary = async () => {
-        setIsGeneratingSummary(true);
-        try {
-            const pendingTasks = internalTasks.filter(t => t.status !== 'finalizada');
-            const tasksForSummary = pendingTasks.map(t => ({
-                title: t.title,
-                status: t.status,
-                deadline: t.deadline,
-                assignedToName: users.find(u => u.id === t.assignedToId)?.name || 'Sin asignar',
-                priority: t.priority
-            }));
-
-            const result = await generateDailySummary({
-                projectName: internalProject.name,
-                tasks: tasksForSummary,
-            });
-
-            setSummaryContent(result);
-            setIsSummaryDialogOpen(true);
-
-        } catch (error) {
-            console.error("Error generating daily summary:", error);
-            toast({
-                variant: "destructive",
-                title: "Error al generar Resumen",
-                description: "No se pudo crear el resumen. Inténtalo de nuevo.",
-            });
-        } finally {
-            setIsGeneratingSummary(false);
-        }
-    };
-    
-    const handleFileUploaded = async (partId: string, file: File) => {
-        await addAttachmentToPart(internalProject.id, partId, file);
-        // The useData hook will update the state, which will cause a re-render
-    };
-
-    const handleFileDeleted = async (partId: string, attachmentId: string) => {
-        await deleteAttachmentFromPart(internalProject.id, partId, attachmentId);
     };
 
     const projectManager = useMemo(() => users.find(u => u.id === internalProject.projectManagerId), [users, internalProject.projectManagerId]);
-    const managers = users.filter(u => u.role === 'Oficina Técnica');
-    const pendingTasksCount = useMemo(() => internalTasks.filter(t => t.status !== 'finalizada').length, [internalTasks]);
+    const managers = users;
+    const pendingTasks = useMemo(() => internalTasks.filter(t => t.status !== 'finalizada').sort((a,b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()), [internalTasks]);
     
     return (
         <div className="space-y-6">
@@ -924,14 +1106,31 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                             </div>
                         </div>
                          <div className="flex items-center gap-2">
-                             <Button onClick={handleGenerateDailySummary} disabled={isGeneratingSummary}>
-                                {isGeneratingSummary ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
-                                Resumen Diario
+                             <ProjectQRCode 
+                                url={`https://studio--machinetrack-uauk1.us-central1.hosted.app/dashboard/projects/${internalProject.id}`}
+                                title={`QR para ${internalProject.name}`}
+                                description="Escanea para acceder directamente a la vista de este proyecto."
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsTasksDialogOpen(true)}
+                            >
+                                <ClipboardList className="mr-2 h-4 w-4" />
+                                Tareas Pendientes
                             </Button>
-                             <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
-                                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsPdfModalOpen(true)}
+                                disabled={isGeneratingPdf}
+                            >
+                                {isGeneratingPdf ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                )}
                                 PDF Tareas Pendientes
-                                <Badge variant="secondary" className="ml-2">{pendingTasksCount}</Badge>
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                                 <Edit className="mr-2 h-4 w-4" />
@@ -965,7 +1164,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <ProjectAlerts 
-                        alerts={internalProject.alerts} 
+                        alerts={projectAlerts} 
                         project={internalProject}
                         tasks={internalTasks}
                         users={users}
@@ -977,14 +1176,26 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                         </div>
                         <Progress value={internalProject.progress} />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4 text-sm">
                         <div className="flex items-center md:justify-center text-muted-foreground">
                             <CalendarIcon className="h-4 w-4 mr-2"/>
-                            <span>Inicio: {internalProject.startDate ? <ClientSideDate dateString={internalProject.startDate} /> : ''}</span>
+                            <span>Inicio: <ClientSideDate dateString={internalProject.startDate} /></span>
                         </div>
                         <div className="flex items-center md:justify-center text-muted-foreground">
                             <CheckCircle className="h-4 w-4 mr-2"/>
-                            <span>Entrega: {internalProject.deliveryDate ? <ClientSideDate dateString={internalProject.deliveryDate} /> : ''}</span>
+                            <span>Entrega: <ClientSideDate dateString={internalProject.deliveryDate} /></span>
+                        </div>
+                        <div className="flex items-center md:justify-center text-muted-foreground">
+                            <Clock className="h-4 w-4 mr-2"/>
+                            <span>H. Estimadas: <span className="font-medium text-foreground ml-1">{internalProject.totalEstimatedTime?.toFixed(1) || 0}h</span></span>
+                        </div>
+                        <div className="flex items-center md:justify-center text-muted-foreground">
+                            <Clock className="h-4 w-4 mr-2"/>
+                            <span>H. Reales: <span className="font-medium text-foreground ml-1">{internalProject.totalActualTime?.toFixed(1) || 0}h</span></span>
+                        </div>
+                        <div className="flex items-center md:justify-center text-muted-foreground">
+                            <Timer className="h-4 w-4 mr-2"/>
+                            <span>H. Pendientes: <span className="font-medium text-foreground ml-1">{internalProject.totalPendingEstimatedTime?.toFixed(1) || 0}h</span></span>
                         </div>
                          <div className="flex items-center md:justify-center text-muted-foreground group">
                             <UserSquare className="h-4 w-4 mr-2"/>
@@ -995,6 +1206,7 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 </CardContent>
             </Card>
 
+            
             <PartsRoadmap 
                 project={internalProject}
                 tasks={internalTasks}
@@ -1011,55 +1223,43 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                     <TabsList>
                         <TabsTrigger value="tasks">Áreas</TabsTrigger>
                         <TabsTrigger value="notes">Notas</TabsTrigger>
-                        <TabsTrigger value="files">Archivos</TabsTrigger>
                     </TabsList>
-                     {selectedPart && (
+                    {selectedPart && (
                         <div className="text-sm font-medium text-muted-foreground">
                             Mostrando áreas para: <span className="font-bold text-foreground">{selectedPart.name}</span>
                         </div>
                     )}
                 </div>
-                <TabsContent value="tasks">
-                    <Card>
-                        <CardContent className="p-0">
-                            <TasksByComponent 
-                                tasks={internalTasks.filter(t => t.partId === selectedPart?.id)} 
-                                users={users} 
-                                project={internalProject}
-                                commonTasks={commonTasks || []}
-                                commonDepartments={commonDepartments || []}
-                                onTaskUpdate={handleTaskUpdate} 
-                                onTaskDelete={handleTaskDelete}
-                                onSignTask={handleSignTask}
-                                onUndoSignTask={handleUndoSignTask}
-                                selectedPart={selectedPart}
-                                onDepartmentAdd={handleAddDepartment}
-                                onDepartmentDelete={handleDepartmentDelete}
-                                onDepartmentNameChange={handleDepartmentNameChange}
-                                openNotesModal={handleOpenNotesModal}
-                                openDescriptionModal={handleOpenDescriptionModal}
-                                onSaveCommonDepartment={saveCommonDepartment}
-                             />
-                        </CardContent>
-                    </Card>
+                <TabsContent value="tasks" className="mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <TasksByComponent 
+                        tasks={internalTasks.filter(t => t.partId === selectedPart?.id)} 
+                        users={users} 
+                        project={internalProject}
+                        commonTasks={commonTasks || []}
+                        commonDepartments={commonDepartments || []}
+                        onTaskUpdate={handleTaskUpdate} 
+                        onTaskDelete={handleTaskDelete}
+                        onSignTask={handleSignTask}
+                        onUndoSignTask={handleUndoSignTask}
+                        selectedPart={selectedPart}
+                        onDepartmentAdd={handleAddDepartment}
+                        onDepartmentDelete={handleDepartmentDelete}
+                        onDepartmentNameChange={handleDepartmentNameChange}
+                        openNotesModal={handleOpenNotesModal}
+                        openDescriptionModal={handleOpenDescriptionModal}
+                        onSaveCommonDepartment={saveCommonDepartment}
+                        />
                 </TabsContent>
                 <TabsContent value="notes">
-                     <ProjectNotes 
+                    <ProjectNotes 
                         initialNotes={internalProject.notes || []} 
                         users={users} 
                         projectId={internalProject.id} 
                         onNoteAdd={handleAddNote}
-                     />
-                </TabsContent>
-                <TabsContent value="files">
-                    <ProjectFiles 
-                        project={internalProject}
-                        selectedPart={selectedPart}
-                        onFileUpload={handleFileUploaded}
-                        onFileDelete={handleFileDeleted}
                     />
                 </TabsContent>
             </Tabs>
+            
              {taskForNotes && (
                  <TaskNotesModal
                     isOpen={isNotesModalOpen}
@@ -1084,42 +1284,41 @@ export default function ProjectDetailsClient({ project: initialProject, tasks: i
                 onSave={handleProjectFieldChange}
                 users={users}
             />
-            <AlertDialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+             <PdfOptionsModal
+                isOpen={isPdfModalOpen}
+                onClose={() => setIsPdfModalOpen(false)}
+                project={internalProject}
+                tasks={internalTasks}
+                onGenerate={handleGeneratePdf}
+                isGenerating={isGeneratingPdf}
+            />
+            <AlertDialog open={isTasksDialogOpen} onOpenChange={setIsTasksDialogOpen}>
                 <AlertDialogContent className="sm:max-w-2xl">
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Resumen Diario</AlertDialogTitle>
+                    <AlertDialogTitle>Tareas Pendientes</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Estas son las recomendaciones y prioridades para el proyecto <strong>{internalProject.name}</strong> para hoy.
+                        Listado de todas las tareas pendientes para el proyecto <strong>{internalProject.name}</strong>, ordenadas por fecha de entrega.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="max-h-[60vh] overflow-y-auto p-1 space-y-4">
-                        <div className="p-4 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
-                            {summaryContent?.summary}
-                        </div>
-                        <Accordion type="single" collapsible>
-                            <AccordionItem value="pending-tasks">
-                                <AccordionTrigger>Ver Tareas Pendientes</AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="space-y-2">
-                                        {internalTasks
-                                            .filter(t => t.status !== 'finalizada')
-                                            .sort((a,b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-                                            .map(task => (
-                                            <div key={task.id} className="flex justify-between items-center text-sm p-2 bg-background rounded-md">
-                                                <div>
-                                                    <p className="font-medium">{task.title}</p>
-                                                    <p className="text-xs text-muted-foreground">{users.find(u => u.id === task.assignedToId)?.name || 'Sin asignar'}</p>
-                                                </div>
-                                                <Badge variant="outline"><ClientSideDate dateString={task.deadline} /></Badge>
-                                            </div>
-                                        ))}
+                        <div className="space-y-2">
+                            {pendingTasks.map(task => (
+                                <div key={task.id} className="flex justify-between items-center text-sm p-2 bg-background rounded-md border">
+                                    <div>
+                                        <p className="font-medium">{task.title}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {users.find(u => u.id === task.assignedToId)?.name || 'Sin asignar'}
+                                            {' - '}
+                                            <span className="font-semibold">{internalProject.parts.find(p => p.id === task.partId)?.name} / {task.component}</span>
+                                        </p>
                                     </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
+                                    <DeadlineBadge deadline={task.deadline} />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <AlertDialogFooter>
-                    <AlertDialogAction onClick={() => setIsSummaryDialogOpen(false)}>Entendido</AlertDialogAction>
+                        <AlertDialogAction onClick={() => setIsTasksDialogOpen(false)}>Entendido</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
